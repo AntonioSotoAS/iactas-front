@@ -3,7 +3,7 @@ import { ActaPendiente } from "@/store/api/actasPendientesApi"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useDownloadFileByUriMutation } from "@/store/api/uploadApi"
-import { IconDownload } from "@tabler/icons-react"
+import { IconDownload, IconEye, IconFile, IconFileText } from "@tabler/icons-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,8 +77,8 @@ export const columns: ColumnDef<ActaPendiente>[] = [
     header: "Observación",
   },
   {
-    id: "acciones",
-    header: "Acciones",
+    id: "acta_generada",
+    header: () => <div className="text-center font-semibold">Acta Generada</div>,
     cell: function CellComponent({ row }) {
       const acta = row.original;
       const router = useRouter();
@@ -119,43 +119,43 @@ export const columns: ColumnDef<ActaPendiente>[] = [
 
       if (acta.acta_generada_id) {
         return (
-          <div className="flex items-center gap-2">
-            <Link href={`/dashboard/mis-actas-generadas`} className="flex-1">
-              <Button variant="outline" size="sm" className="w-full">
-                Ver actas
-              </Button>
-            </Link>
-
+          <div className="flex justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
-                  <span className="sr-only">Abrir menú</span>
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoading}
+                  className="w-[160px] flex items-center justify-center gap-2 rounded-lg border-slate-200 hover:bg-slate-50 text-slate-700"
+                >
+                  <IconEye className="h-4 w-4" />
+                  Ver acta generada
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Descargas</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="center" className="w-[180px] rounded-xl shadow-lg border-slate-200">
+                <DropdownMenuItem
+                  disabled={!acta.acta_generada_uri}
+                  onClick={() => handleDownload(acta.acta_generada_uri, 'acta')}
+                  className="cursor-pointer py-2.5 text-slate-700 focus:bg-slate-50"
+                >
+                  <IconFileText className="mr-2 h-[18px] w-[18px] text-slate-500" />
+                  Ver Acta Generada
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!acta.modelo_uri}
                   onClick={() => handleDownload(acta.modelo_uri, 'modelo')}
+                  className="cursor-pointer py-2.5 text-slate-700 focus:bg-slate-50"
                 >
-                  <IconDownload className="mr-2 h-4 w-4" />
-                  Descargar Modelo
+                  <IconFile className="mr-2 h-[18px] w-[18px] text-slate-500" />
+                  Ver Modelo
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!acta.transcripcion_uri}
                   onClick={() => handleDownload(acta.transcripcion_uri, 'transcripcion')}
+                  className="cursor-pointer py-2.5 text-slate-700 focus:bg-slate-50"
                 >
-                  <IconDownload className="mr-2 h-4 w-4" />
-                  Descargar Transcripción
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!acta.acta_generada_uri}
-                  onClick={() => handleDownload(acta.acta_generada_uri, 'acta')}
-                >
-                  <IconDownload className="mr-2 h-4 w-4" />
-                  Descargar Acta
+                  <IconFileText className="mr-2 h-[18px] w-[18px] text-slate-500" />
+                  Ver Transcripción
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -163,16 +163,31 @@ export const columns: ColumnDef<ActaPendiente>[] = [
         );
       } else {
         return (
-          <Button
-            variant="default"
-            size="sm"
-            className="w-full"
-            onClick={handleGenerarActa}
-          >
-            Generar acta
-          </Button>
+          <div className="flex justify-center">
+            <Button
+              size="sm"
+              className="w-[160px] bg-[#9e1616] hover:bg-[#851111] text-white font-semibold rounded-lg shadow-sm transition-colors"
+              onClick={handleGenerarActa}
+            >
+              Generar acta
+            </Button>
+          </div>
         );
       }
+    },
+  },
+  {
+    id: "enviada_sij",
+    header: () => <div className="text-center font-semibold">Enviada al SIJ</div>,
+    cell: () => {
+      // Según tus instrucciones, estas actas en la tabla SIJ siempre estarán pendientes de envío
+      return (
+        <div className="flex justify-center">
+          <span className="inline-flex items-center justify-center rounded-lg bg-[#fff8e7] px-4 py-1.5 text-[13px] font-medium text-[#c48c3b] w-[150px]">
+            Pendiente de envío
+          </span>
+        </div>
+      );
     },
   },
 ]
