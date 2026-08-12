@@ -54,7 +54,7 @@ const navigationItems = [
     role: ["superadmin"]
   },
   {
-    title: "Mis Actas Pendientes",
+    title: "Mis Actas Pendientes SIJ",
     url: "/dashboard/actas-pendientes",
     icon: IconClock,
     role: ["superadmin", "admin", "especialista_audiencia", "coordinador_especialista"]

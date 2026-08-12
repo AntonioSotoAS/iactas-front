@@ -171,7 +171,7 @@ export default function DashboardPage() {
               </p>
               <ul className="text-sm text-slate-600 space-y-2 list-disc pl-4 marker:text-slate-400">
                 <li><strong className="text-slate-800 font-semibold">Generar acta:</strong> Inicia el proceso adjuntando la transcripción y el modelo correspondientes.</li>
-                <li><strong className="text-slate-800 font-semibold">Opción "Ver":</strong> Tras generar el acta, puedes revisar y descargar la transcripción, el modelo y el borrador final.</li>
+                <li><strong className="text-slate-800 font-semibold">Opción &quot;Ver&quot;:</strong> Tras generar el acta, puedes revisar y descargar la transcripción, el modelo y el borrador final.</li>
                 <li><strong className="text-slate-800 font-semibold">Validación automática:</strong> Al enviar el acta al despacho del juez vía SIJ, se remueve automáticamente de la lista.</li>
               </ul>
             </div>

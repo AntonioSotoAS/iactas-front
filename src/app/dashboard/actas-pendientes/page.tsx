@@ -32,7 +32,7 @@ export default function ActasPendientesPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Actas Pendientes</h1>
+          <h1 className="text-2xl font-bold">Actas Pendientes en el SIJ</h1>
         </div>
         <Card>
           <CardContent className="flex items-center justify-center py-8">
@@ -50,7 +50,7 @@ export default function ActasPendientesPage() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Actas Pendientes</h1>
+          <h1 className="text-2xl font-bold">Actas Pendientes en el SIJ</h1>
           <Button onClick={() => refetch()} variant="outline">
             <IconRefresh className="h-4 w-4 mr-2" />
             Reintentar
@@ -80,7 +80,7 @@ export default function ActasPendientesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Actas Pendientes</h1>
+          <h1 className="text-2xl font-bold">Actas Pendientes en el SIJ</h1>
           <p className="text-muted-foreground">
             Consulta las actas pendientes de atención registradas en el sistema estadístico.
           </p>
@@ -93,7 +93,7 @@ export default function ActasPendientesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Actas Pendientes</CardTitle>
+          <CardTitle>Lista de Actas Pendientes en el SIJ</CardTitle>
           <CardDescription>
             {actas?.length ? `${actas.length} actas encontradas para el DNI ${dni}` : "No se encontraron actas"}
           </CardDescription>
