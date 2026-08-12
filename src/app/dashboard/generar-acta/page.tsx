@@ -30,7 +30,7 @@ export default function GenerarActaAutomaticoV2Page() {
     const [expediente, setExpediente] = useState<string>("")
     const [isProcessing, setIsProcessing] = useState(false)
     const [processingMessage, setProcessingMessage] = useState<string>("")
-    
+
     // Estado para los datos de audiencia usando el tipo correcto
     const [audienciaData, setAudienciaData] = useState<AudienciaData | null>(null)
 
@@ -38,18 +38,18 @@ export default function GenerarActaAutomaticoV2Page() {
     useEffect(() => {
         try {
             const audienciaDataFromStorage = sessionStorage.getItem('audienciaData')
-            
+
             if (audienciaDataFromStorage) {
                 const audienciaData: AudienciaData = JSON.parse(audienciaDataFromStorage)
-                
+
                 // Setear el expediente automáticamente con x_formato
                 if (audienciaData.x_formato) {
                     setExpediente(audienciaData.x_formato)
                 }
-                
+
                 // Usar directamente los datos de audiencia sin mapeo
                 setAudienciaData(audienciaData)
-                
+
                 // Limpiar sessionStorage después de leer los datos
                 sessionStorage.removeItem('audienciaData')
             }
@@ -102,14 +102,14 @@ export default function GenerarActaAutomaticoV2Page() {
         setProcessingMessage("")
 
         try {
-            
+
             // Declarar variables para los resultados de upload
             let modeloUploadResult: UploadFileResponse
             let transcripcionUploadResult: UploadFileResponse
-            
+
             // PASO 1: Subir archivo modelo
             setProcessingMessage("Subiendo archivo modelo...")
-            
+
             try {
                 modeloUploadResult = await uploadToPath({
                     file: modeloFile,
@@ -125,7 +125,7 @@ export default function GenerarActaAutomaticoV2Page() {
                 }
 
                 toast.success("✅ Archivo modelo subido correctamente")
-                
+
             } catch (error) {
                 console.error("❌ Error al subir modelo:", error)
                 toast.error("❌ Error al subir el archivo modelo. Inténtalo de nuevo.")
@@ -134,7 +134,7 @@ export default function GenerarActaAutomaticoV2Page() {
 
             // PASO 2: Subir archivo transcripción
             setProcessingMessage("Subiendo archivo transcripción...")
-            
+
             try {
                 transcripcionUploadResult = await uploadToPath({
                     file: transcripcionFile,
@@ -150,7 +150,7 @@ export default function GenerarActaAutomaticoV2Page() {
                 }
 
                 toast.success("✅ Archivo transcripción subido correctamente")
-                
+
             } catch (error) {
                 console.error("❌ Error al subir transcripción:", error)
                 toast.error("❌ Error al subir el archivo transcripción. Inténtalo de nuevo.")
@@ -159,13 +159,13 @@ export default function GenerarActaAutomaticoV2Page() {
 
             // PASO 3: Crear acta solicitud con las URLs
             setProcessingMessage("Creando solicitud de acta...")
-            
+
             try {
                 // Limpiar metadata para remover valores undefined
                 const metadata: Record<string, string | number> = {
                     expediente: expediente
                 }
-                
+
                 // Solo agregar campos que tengan valores válidos si hay datos de audiencia
                 if (audienciaData) {
                     if (audienciaData.n_unico) {
@@ -228,7 +228,7 @@ export default function GenerarActaAutomaticoV2Page() {
                 if (actaSolicitudResult.success) {
                     toast.success("🎉 ¡Solicitud de acta creada exitosamente! Los archivos se procesarán automáticamente.")
                     setProcessingMessage("Esperando procesamiento en tiempo real (Socket conectado)...")
-                    
+
                     const socket = socketService.getSocket()
                     const solicitudId = actaSolicitudResult.data.id
 
@@ -244,7 +244,7 @@ export default function GenerarActaAutomaticoV2Page() {
                     }
 
                     socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                    
+
                     // Fallback genérico por si se pierde la conexión
                     setTimeout(() => {
                         socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
@@ -253,12 +253,12 @@ export default function GenerarActaAutomaticoV2Page() {
                 } else {
                     throw new Error("Error al crear la solicitud de acta")
                 }
-                
+
             } catch (error: unknown) {
                 // Solo loggear errores inesperados, no errores de validación esperados
                 if (error && typeof error === 'object' && 'data' in error) {
                     const errorObj = error as { data?: unknown; status?: unknown; message?: unknown }
-                    
+
                     // Solo mostrar logs detallados para errores del servidor (500+)
                     if (errorObj.status && typeof errorObj.status === 'number' && errorObj.status >= 500) {
                         console.error("❌ Error del servidor al crear acta solicitud:", error)
@@ -267,10 +267,10 @@ export default function GenerarActaAutomaticoV2Page() {
                         }
                     }
                 }
-                
+
                 // Mostrar mensaje de error más específico
                 let errorMessage = "❌ Error al crear la solicitud de acta. Los archivos se subieron correctamente pero no se pudo crear la solicitud."
-                
+
                 if (error && typeof error === 'object' && 'data' in error) {
                     const errorObj = error as { data?: unknown; message?: unknown }
                     if (errorObj.data && typeof errorObj.data === 'object' && 'message' in errorObj.data) {
@@ -282,7 +282,7 @@ export default function GenerarActaAutomaticoV2Page() {
                         errorMessage = `❌ Error: ${errorObj.message}`
                     }
                 }
-                
+
                 toast.error(errorMessage)
                 throw error
             }
@@ -292,7 +292,7 @@ export default function GenerarActaAutomaticoV2Page() {
             if (error instanceof Error && !error.message.includes("Error al crear la solicitud de acta")) {
                 console.error("❌ Error crítico en el proceso:", error)
             }
-            
+
             // Determinar el tipo de error y mostrar mensaje apropiado
             if (error instanceof Error) {
                 if (error.message.includes("modelo")) {
