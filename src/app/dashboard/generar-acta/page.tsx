@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { IconSend, IconFileText, IconRobot } from "@tabler/icons-react"
+import { Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/file-uploader"
 import { useUploadToPathMutation, UploadFileResponse } from "@/store/api/uploadApi"
 import { useCreateActaSolicitudMutation } from "@/store/api/actaSolicitudApi"
@@ -69,6 +70,8 @@ export default function GenerarActaAutomaticoV2Page() {
 
 
     const handleGenerarActa = async (): Promise<void> => {
+        if (isProcessing) return;
+
         if (!modeloFile || !transcripcionFile) {
             toast.error("Por favor sube tanto el modelo como la transcripción")
             return
@@ -408,7 +411,7 @@ export default function GenerarActaAutomaticoV2Page() {
                         >
                             {isProcessing ? (
                                 <>
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
                                     <span>Procesando solicitud...</span>
                                 </>
                             ) : (
