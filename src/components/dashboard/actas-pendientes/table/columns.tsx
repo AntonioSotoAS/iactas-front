@@ -52,7 +52,7 @@ export const columns: ColumnDef<ActaPendiente>[] = [
   },
   {
     accessorKey: "f_descargo",
-    header: "Descargo",
+    header: "Descargo / Realización de audiencia / ",
     cell: ({ row }) => {
       const dateStr = row.getValue("f_descargo") as string;
       if (!dateStr) return <span className="text-muted-foreground">N/A</span>;

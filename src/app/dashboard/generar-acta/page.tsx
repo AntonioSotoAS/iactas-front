@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,7 @@ export default function GenerarActaAutomaticoV2Page() {
     const [transcripcionFile, setTranscripcionFile] = useState<File | null>(null)
     const [expediente, setExpediente] = useState<string>("")
     const [isProcessing, setIsProcessing] = useState(false)
+    const isProcessingRef = useRef(false)
     const [processingMessage, setProcessingMessage] = useState<string>("")
 
     // Estado para los datos de audiencia usando el tipo correcto
@@ -70,7 +71,7 @@ export default function GenerarActaAutomaticoV2Page() {
 
 
     const handleGenerarActa = async (): Promise<void> => {
-        if (isProcessing) return;
+        if (isProcessingRef.current) return;
 
         if (!modeloFile || !transcripcionFile) {
             toast.error("Por favor sube tanto el modelo como la transcripción")
@@ -101,6 +102,7 @@ export default function GenerarActaAutomaticoV2Page() {
             return
         }
 
+        isProcessingRef.current = true
         setIsProcessing(true)
         setProcessingMessage("")
 
@@ -311,6 +313,7 @@ export default function GenerarActaAutomaticoV2Page() {
                 toast.error("❌ Error desconocido. Inténtalo de nuevo o contacta con soporte técnico.")
             }
         } finally {
+            isProcessingRef.current = false
             setIsProcessing(false)
             setProcessingMessage("")
         }

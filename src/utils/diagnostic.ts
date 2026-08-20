@@ -37,7 +37,7 @@ export class DiagnosticUtils {
       results.push({
         success: false,
         message: "URL de API no configurada",
-        details: "Crea un archivo .env.local con NEXT_PUBLIC_API_URL=http://localhost:3004/api"
+        details: "Crea un archivo .env.local con NEXT_PUBLIC_API_URL=http://localhost:3001/api"
       })
     } else {
       results.push({

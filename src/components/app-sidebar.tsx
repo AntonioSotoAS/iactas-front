@@ -17,6 +17,7 @@ import {
   IconClock,
   IconChartBar,
   IconDatabase,
+  IconAlertTriangle,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -106,6 +107,12 @@ const navigationItems = [
     url: "/dashboard/sedes",
     icon: IconBuilding,
     role: ["superadmin"]
+  },
+  {
+    title: "Requisitorias",
+    url: "/dashboard/requisitorias",
+    icon: IconAlertTriangle,
+    role: ["superadmin", "admin", "especialista_audiencia"]
   },
   {
     title: "Configuración",

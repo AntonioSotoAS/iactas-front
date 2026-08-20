@@ -28,7 +28,7 @@ class SocketService {
 
   private constructor() {
     const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3004/api/v1';
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
     try {
       const parsedUrl = new URL(baseUrl);

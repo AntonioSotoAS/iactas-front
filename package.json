@@ -3,9 +3,9 @@
   "version": "3.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3007",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 3007",
+    "start": "next start",
     "lint": "next lint",
     "generate-icons": "node scripts/generate-icons.js",
     "pwa:setup": "npm run generate-icons"
