@@ -178,44 +178,8 @@ export default function GenerarActaPorModeloPage() {
 
             if (actaSolicitudResult.success) {
                 toast.success("🎉 ¡Solicitud creada exitosamente con tu Modelo Estandarizado!")
-                setProcessingMessage("Esperando procesamiento en tiempo real...")
-
-                const socket = socketService.getSocket()
-                const solicitudId = actaSolicitudResult.data.id
-
-                const cleanup = () => {
-                    socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                    socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
-                }
-
-                const handleRedirect = () => {
-                    cleanup()
-                    router.push("/dashboard/mis-actas-generadas")
-                }
-
-                const handleCambioEstado = (payload: WsCambioEstadoPayload) => {
-                    if (payload?.data?.solicitudId === solicitudId) {
-                        if (payload.data.nuevoEstado === 'completada' || payload.data.nuevoEstado === 'error') {
-                            handleRedirect()
-                        } else if (payload.data.nuevoEstado === 'procesando') {
-                            setProcessingMessage("Procesando acta con Inteligencia Artificial...")
-                        }
-                    }
-                }
-
-                const handleCompletada = (payload: any) => {
-                    const solId = payload?.data?.solicitudId || payload?.solicitudId
-                    if (solId === solicitudId) {
-                        handleRedirect()
-                    }
-                }
-
-                socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
-
-                setTimeout(() => {
-                    handleRedirect()
-                }, 30000)
+                setIsProcessing(false)
+                router.push("/dashboard/mis-actas-generadas")
             } else {
                 throw new Error("Error al crear la solicitud de acta")
             }
@@ -290,8 +254,8 @@ export default function GenerarActaPorModeloPage() {
                                         key={modelo.id}
                                         onClick={() => setSelectedModelo(modelo)}
                                         className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${isSelected
-                                                ? 'border-primary bg-primary/10 ring-2 ring-primary/20 shadow-sm'
-                                                : 'border-slate-200 dark:border-slate-800 hover:border-primary/50 bg-white dark:bg-slate-900'
+                                            ? 'border-primary bg-primary/10 ring-2 ring-primary/20 shadow-sm'
+                                            : 'border-slate-200 dark:border-slate-800 hover:border-primary/50 bg-white dark:bg-slate-900'
                                             }`}
                                     >
                                         <div className="flex items-start justify-between gap-2">

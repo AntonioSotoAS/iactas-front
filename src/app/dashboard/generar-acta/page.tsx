@@ -238,44 +238,8 @@ export default function GenerarActaAutomaticoV2Page() {
 
                 if (actaSolicitudResult.success) {
                     toast.success("🎉 ¡Solicitud de acta creada exitosamente! Los archivos se procesarán automáticamente.")
-                    setProcessingMessage("Esperando procesamiento en tiempo real (Socket conectado)...")
-
-                    const socket = socketService.getSocket()
-                    const solicitudId = actaSolicitudResult.data.id
-
-                    const cleanup = () => {
-                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
-                    }
-
-                    const handleRedirect = () => {
-                        cleanup()
-                        router.push("/dashboard/mis-actas-generadas")
-                    }
-
-                    const handleCambioEstado = (payload: WsCambioEstadoPayload) => {
-                        if (payload?.data?.solicitudId === solicitudId) {
-                            if (payload.data.nuevoEstado === 'completada' || payload.data.nuevoEstado === 'error') {
-                                handleRedirect()
-                            } else if (payload.data.nuevoEstado === 'procesando') {
-                                setProcessingMessage("Tu solicitud está siendo procesada ahora mismo...")
-                            }
-                        }
-                    }
-
-                    const handleCompletada = (payload: any) => {
-                        const solId = payload?.data?.solicitudId || payload?.solicitudId
-                        if (solId === solicitudId) {
-                            handleRedirect()
-                        }
-                    }
-
-                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
-
-                    setTimeout(() => {
-                        handleRedirect()
-                    }, 30000)
+                    setIsProcessing(false)
+                    router.push("/dashboard/mis-actas-generadas")
                 } else {
                     throw new Error("Error al crear la solicitud de acta")
                 }
