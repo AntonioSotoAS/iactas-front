@@ -10,7 +10,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { IconDownload, IconRefresh, IconAlertCircle } from "@tabler/icons-react"
+import { IconDownload, IconRefresh, IconAlertCircle, IconSparkles, IconCopy, IconCheck } from "@tabler/icons-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { toast } from "sonner"
 import { ActaGenerada, EstadoActa } from "@/types/actaGenerada"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -33,6 +35,65 @@ const getEstadoBadge = (estado: EstadoActa) => {
     <Badge variant={estadoInfo.variant} className={estadoInfo.className}>
       {estadoInfo.label}
     </Badge>
+  )
+}
+
+// Componente para botón y modal de Resumen Ejecutivo IA
+const ResumenModalButton = ({ acta }: { acta: ActaGenerada }) => {
+  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const resumenText = acta.markdown_respuesta || 'No se generó un resumen ejecutivo para este registro.'
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(resumenText)
+    setCopied(true)
+    toast.success('Resumen copiado al portapapeles')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1.5"
+        title="Ver Resumen Ejecutivo de la Audiencia"
+      >
+        <IconSparkles className="h-3.5 w-3.5 text-purple-600" />
+        Ver Resumen
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-300">
+              <IconSparkles className="h-5 w-5 text-purple-600" />
+              Resumen Ejecutivo IA - {acta.expediente}
+            </DialogTitle>
+            <DialogDescription>
+              Síntesis ejecutiva de la audiencia para lectura rápida por parte del especialista legal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border text-xs whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200 leading-relaxed">
+            {resumenText}
+          </div>
+
+          <DialogFooter className="flex items-center justify-between pt-4 border-t">
+            <Button variant="outline" size="sm" onClick={handleCopy} className="text-xs flex items-center gap-1">
+              {copied ? <IconCheck className="h-4 w-4 text-green-600" /> : <IconCopy className="h-4 w-4" />}
+              {copied ? 'Copiado' : 'Copiar Resumen'}
+            </Button>
+
+            <Button variant="default" size="sm" onClick={() => setOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -195,9 +256,6 @@ const DownloadUriButton = ({ uri, tipo, expediente }: { uri: string; tipo: 'mode
   )
 }
 
-
-
-
 export const createColumns = (): ColumnDef<ActaGenerada>[] => [
   {
     accessorKey: "expediente",
@@ -243,6 +301,14 @@ export const createColumns = (): ColumnDef<ActaGenerada>[] => [
       const transcripcionUri = acta.transcripcion_uri
 
       return <DownloadUriButton uri={transcripcionUri || ''} tipo="transcripcion" expediente={acta.expediente} />
+    },
+  },
+  {
+    id: "resumen",
+    header: "Resumen IA",
+    cell: ({ row }) => {
+      const acta = row.original
+      return <ResumenModalButton acta={acta} />
     },
   },
   {

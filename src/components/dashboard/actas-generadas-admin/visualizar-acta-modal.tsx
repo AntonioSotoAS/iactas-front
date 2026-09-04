@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { IconDownload, IconFileText, IconFile, IconX } from "@tabler/icons-react"
+import { IconDownload, IconFileText, IconFile, IconX, IconSparkles } from "@tabler/icons-react"
 import { ActaGenerada } from "@/types/actaGenerada"
 import { useDownloadFileByUriMutation } from "@/store/api/uploadApi"
 import { toast } from "sonner"
@@ -13,7 +13,7 @@ interface VisualizarActaModalProps {
   acta: ActaGenerada | null
   isOpen: boolean
   onClose: () => void
-  initialTab?: 'acta' | 'modelo' | 'transcripcion'
+  initialTab?: 'acta' | 'modelo' | 'transcripcion' | 'resumen'
 }
 
 export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta' }: VisualizarActaModalProps) {
@@ -59,12 +59,12 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
     }
   }
 
-
   if (!acta) return null
 
   const hasActaGenerada = !!acta.acta_generada_uri
   const hasModelo = !!acta.modelo_uri
   const hasTranscripcion = !!acta.transcripcion_uri
+  const hasResumen = !!acta.markdown_respuesta
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -75,16 +75,20 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
             Visualizar Acta - {acta.expediente}
           </DialogTitle>
           <DialogDescription>
-            Visualiza y descarga el modelo, transcripción y acta generada
+            Visualiza y descarga el modelo, transcripción, acta generada y resumen de IA
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'acta' | 'modelo' | 'transcripcion')} className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'acta' | 'modelo' | 'transcripcion' | 'resumen')} className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="acta" disabled={!hasActaGenerada}>
                 <IconFileText className="h-4 w-4 mr-2" />
                 Acta Generada
+              </TabsTrigger>
+              <TabsTrigger value="resumen">
+                <IconSparkles className="h-4 w-4 mr-2 text-purple-600" />
+                Resumen IA
               </TabsTrigger>
               <TabsTrigger value="modelo" disabled={!hasModelo}>
                 <IconFile className="h-4 w-4 mr-2" />
@@ -97,6 +101,24 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
             </TabsList>
 
             <div className="flex-1 overflow-hidden mt-4">
+              {/* Resumen IA */}
+              <TabsContent value="resumen" className="h-full flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold flex items-center gap-1.5 text-purple-900 dark:text-purple-300">
+                    <IconSparkles className="h-4 w-4 text-purple-600" />
+                    Síntesis Ejecutiva de la Audiencia
+                  </h3>
+                </div>
+                
+                <div className="flex-1 border rounded-xl p-4 overflow-auto bg-slate-50 dark:bg-slate-900 text-xs leading-relaxed whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200">
+                  {hasResumen ? (
+                    acta.markdown_respuesta
+                  ) : (
+                    <span className="text-muted-foreground italic">No se ha generado un resumen para esta audiencia.</span>
+                  )}
+                </div>
+              </TabsContent>
+
               {/* Acta Generada */}
               <TabsContent value="acta" className="h-full flex flex-col">
                 <div className="flex items-center justify-between mb-4">

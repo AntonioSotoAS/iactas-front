@@ -17,6 +17,9 @@ import { AudienciaData } from "@/types/audiencia"
 import { socketService } from "@/lib/socket"
 import { SOLICITUD_WS_EVENTS, WsCambioEstadoPayload } from "@/types/ws-events"
 
+import { useGetModelosActaQuery } from "@/store/api/modeloActaApi"
+import { ModeloActaData } from "@/types/modeloActa"
+
 import { toast } from "react-hot-toast"
 import packageJson from "../../../../package.json"
 
@@ -25,7 +28,10 @@ export default function GenerarActaAutomaticoV2Page() {
     const { user } = useUser()
     const [uploadToPath] = useUploadToPathMutation()
     const [createActaSolicitud] = useCreateActaSolicitudMutation()
+    const { data: modelosResponse } = useGetModelosActaQuery({ userId: user?.id || 1 })
 
+    const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>("")
+    const [selectedPlantilla, setSelectedPlantilla] = useState<ModeloActaData | null>(null)
     const [modeloFile, setModeloFile] = useState<File | null>(null)
     const [transcripcionFile, setTranscripcionFile] = useState<File | null>(null)
     const [expediente, setExpediente] = useState<string>("")
@@ -237,24 +243,39 @@ export default function GenerarActaAutomaticoV2Page() {
                     const socket = socketService.getSocket()
                     const solicitudId = actaSolicitudResult.data.id
 
+                    const cleanup = () => {
+                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
+                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
+                    }
+
+                    const handleRedirect = () => {
+                        cleanup()
+                        router.push("/dashboard/mis-actas-generadas")
+                    }
+
                     const handleCambioEstado = (payload: WsCambioEstadoPayload) => {
-                        if (payload.data.solicitudId === solicitudId) {
+                        if (payload?.data?.solicitudId === solicitudId) {
                             if (payload.data.nuevoEstado === 'completada' || payload.data.nuevoEstado === 'error') {
-                                socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                                router.push("/dashboard/mis-actas-generadas")
+                                handleRedirect()
                             } else if (payload.data.nuevoEstado === 'procesando') {
                                 setProcessingMessage("Tu solicitud está siendo procesada ahora mismo...")
                             }
                         }
                     }
 
-                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
+                    const handleCompletada = (payload: any) => {
+                        const solId = payload?.data?.solicitudId || payload?.solicitudId
+                        if (solId === solicitudId) {
+                            handleRedirect()
+                        }
+                    }
 
-                    // Fallback genérico por si se pierde la conexión
+                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
+                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_COMPLETADA, handleCompletada)
+
                     setTimeout(() => {
-                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                        router.push("/dashboard/mis-actas-generadas")
-                    }, 45000)
+                        handleRedirect()
+                    }, 30000)
                 } else {
                     throw new Error("Error al crear la solicitud de acta")
                 }
@@ -365,6 +386,47 @@ export default function GenerarActaAutomaticoV2Page() {
                                 <p className="text-sm text-green-600 font-medium mt-1 bg-green-50 px-3 py-2 rounded-md border border-green-200">
                                     ✓ Expediente cargado automáticamente desde la audiencia seleccionada
                                 </p>
+                            )}
+                        </div>
+
+                        {/* Selector de Modelo de Acta Personalizado */}
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Modelo de Acta (Opcional)
+                            </label>
+                            <select
+                                className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                value={selectedPlantillaId}
+                                onChange={(e) => {
+                                    const val = e.target.value
+                                    setSelectedPlantillaId(val)
+                                    const plantilla = modelosResponse?.data?.find(m => m.id.toString() === val) || null
+                                    setSelectedPlantilla(plantilla)
+                                    if (plantilla) {
+                                        toast.success(`Modelo "${plantilla.titulo}" seleccionado`)
+                                    }
+                                }}
+                            >
+                                <option value="">-- Seleccionar Modelo Guardado (o subir DOCX manual abajo) --</option>
+                                {modelosResponse?.data?.map((p) => (
+                                    <option key={p.id} value={p.id.toString()}>
+                                        {p.titulo} {p.variables?.length ? `(${p.variables.length} variables)` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedPlantilla && (
+                                <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-md text-xs text-blue-900 dark:text-blue-200 space-y-1">
+                                    <p className="font-semibold">✓ Modelo configurado: {selectedPlantilla.titulo}</p>
+                                    {selectedPlantilla.instruccionesIa && (
+                                        <p>• Incluye instrucciones personalizadas para la IA</p>
+                                    )}
+                                    {selectedPlantilla.jsonSchema && (
+                                        <p>• Incluye estructura JSON personalizada</p>
+                                    )}
+                                    {selectedPlantilla.docxUrl && (
+                                        <p>• Archivo DOCX predefinido cargado</p>
+                                    )}
+                                </div>
                             )}
                         </div>
 

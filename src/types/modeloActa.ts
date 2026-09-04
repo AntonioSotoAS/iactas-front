@@ -11,8 +11,12 @@ export interface EstructuraSeccionDto {
 export interface CreateModeloActaDto {
   titulo: string
   descripcion: string
-  estructura: EstructuraSeccionDto[]
+  estructura?: EstructuraSeccionDto[]
   userId: number
+  docxUrl?: string
+  jsonSchema?: string
+  instruccionesIa?: string
+  variables?: string[]
 }
 
 export interface UpdateModeloActaDto {
@@ -20,17 +24,25 @@ export interface UpdateModeloActaDto {
   descripcion?: string
   estructura?: EstructuraSeccionDto[]
   activo?: boolean
+  docxUrl?: string
+  jsonSchema?: string
+  instruccionesIa?: string
+  variables?: string[]
 }
 
 export interface ModeloActaData {
   id: number
   titulo: string
   descripcion: string
-  estructura: EstructuraSeccionDto[]
+  estructura?: EstructuraSeccionDto[]
   userId: number
   fechaCreacion: string
   fechaActualizacion: string
   activo: boolean
+  docxUrl?: string
+  jsonSchema?: string
+  instruccionesIa?: string
+  variables?: string[]
 }
 
 export interface ModeloActaResponse {

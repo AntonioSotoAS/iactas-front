@@ -214,31 +214,49 @@ export const uploadApi = createApi({
 // Función de descarga directa que no usa Redux para evitar problemas de serialización
 export const downloadFileDirectly = async (uri: string, filename?: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/upload/download-file?uri=${encodeURIComponent(uri)}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3009/api/v1'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
-    if (!response.ok) {
-      throw new Error('Error al descargar el archivo');
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename || `archivo-${Date.now()}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    // 1. Probar primero endpoint de descarga por URI del backend
+    let downloadUrl = `${baseUrl}/upload/download-file?uri=${encodeURIComponent(uri)}`
+    let response = await fetch(downloadUrl, { method: 'GET', headers })
+
+    // 2. Si falla, probar endpoint en plural /uploads/download-file
+    if (!response.ok) {
+      downloadUrl = `${baseUrl}/uploads/download-file?uri=${encodeURIComponent(uri)}`
+      response = await fetch(downloadUrl, { method: 'GET', headers })
+    }
+
+    // 3. Si aún falla y es una ruta estática, intentar fetch directo al archivo backend
+    if (!response.ok && (uri.startsWith('http') || uri.includes('upload'))) {
+      const origin = baseUrl.replace(/\/api(\/v\d+)?\/?$/, '')
+      const directUrl = uri.startsWith('http') ? uri : `${origin}/${uri.replace(/^\//, '')}`
+      response = await fetch(directUrl, { method: 'GET', headers })
+    }
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP ${response.status} al descargar el archivo`)
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename || `archivo-${Date.now()}.docx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
   } catch (error) {
-    console.error('Error al descargar archivo:', error);
-    throw error;
+    console.error('Error al descargar archivo:', error)
+    throw error
   }
-};
+}
 
 // API separado para descarga de archivos (mantenido para compatibilidad)
 export const downloadApi = createApi({

@@ -18,6 +18,7 @@ import {
   IconChartBar,
   IconDatabase,
   IconAlertTriangle,
+  IconTemplate,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -46,6 +47,18 @@ const navigationItems = [
     title: "Generar Acta",
     url: "/dashboard/generar-acta",
     icon: IconRobot,
+    role: ["superadmin", "admin", "coordinador_especialista"]
+  },
+  {
+    title: "Generar con Modelo",
+    url: "/dashboard/generar-acta-modelo",
+    icon: IconFileText,
+    role: ["superadmin", "admin", "coordinador_especialista"]
+  },
+  {
+    title: "Modelos de Actas",
+    url: "/dashboard/plantillas",
+    icon: IconTemplate,
     role: ["superadmin", "admin", "coordinador_especialista"]
   },
   {
