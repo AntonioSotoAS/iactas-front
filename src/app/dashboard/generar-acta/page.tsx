@@ -28,7 +28,7 @@ export default function GenerarActaAutomaticoV2Page() {
     const { user } = useUser()
     const [uploadToPath] = useUploadToPathMutation()
     const [createActaSolicitud] = useCreateActaSolicitudMutation()
-    const { data: modelosResponse } = useGetModelosActaQuery({ userId: user?.id || 1 })
+    const { data: modelosResponse } = useGetModelosActaQuery()
 
     const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>("")
     const [selectedPlantilla, setSelectedPlantilla] = useState<ModeloActaData | null>(null)

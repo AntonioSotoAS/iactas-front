@@ -27,8 +27,11 @@ class SocketService {
   private subscriberCount = 0;
 
   private constructor() {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+    const defaultUrl = typeof window !== 'undefined' && window.location.hostname
+      ? `http://${window.location.hostname}:3009/api/v1`
+      : 'http://172.17.78.59:3009/api/v1';
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultUrl;
 
     try {
       const parsedUrl = new URL(baseUrl);

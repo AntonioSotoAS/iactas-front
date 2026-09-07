@@ -90,16 +90,21 @@ export function PlantillaFormDialog({
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
 
-  // Manejo de archivo local antes de subir al servidor
+  // Manejo de archivo DOCX local antes de subir al servidor
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [docxUrl, setDocxUrl] = useState('')
   const [docxFileName, setDocxFileName] = useState('')
   const [detectedVariables, setDetectedVariables] = useState<string[]>([])
 
+  // Manejo de archivo PDF previsualizador local antes de subir al servidor
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null)
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [pdfFileName, setPdfFileName] = useState('')
+
   const [jsonSchema, setJsonSchema] = useState(DEFAULT_JSON_SCHEMA)
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [instruccionesIa, setInstruccionesIa] = useState(DEFAULT_IA_INSTRUCTIONS)
-  const [uploadingDocx, setUploadingDocx] = useState(false)
+  const [uploadingFiles, setUploadingFiles] = useState(false)
 
   const [createModeloActa, { isLoading: isCreating }] = useCreateModeloActaMutation()
   const [updateModeloActa, { isLoading: isUpdating }] = useUpdateModeloActaMutation()
@@ -112,6 +117,15 @@ export function PlantillaFormDialog({
       setDocxUrl(plantillaToEdit.docxUrl || '')
       setDocxFileName(plantillaToEdit.docxUrl ? plantillaToEdit.docxUrl.split('/').pop() || 'modelo.docx' : '')
       setSelectedFile(null)
+
+      const storedPdf = plantillaToEdit.id && typeof window !== 'undefined'
+        ? localStorage.getItem(`iactas_pdf_modelo_${plantillaToEdit.id}`)
+        : null
+      const effectivePdfUrl = plantillaToEdit.pdfUrl || storedPdf || ''
+      setPdfUrl(effectivePdfUrl)
+      setPdfFileName(effectivePdfUrl ? effectivePdfUrl.split('/').pop() || 'previsualizacion.pdf' : '')
+      setSelectedPdfFile(null)
+
       setJsonSchema(
         plantillaToEdit.jsonSchema
           ? typeof plantillaToEdit.jsonSchema === 'string'
@@ -127,6 +141,11 @@ export function PlantillaFormDialog({
       setDocxUrl('')
       setDocxFileName('')
       setSelectedFile(null)
+
+      setPdfUrl('')
+      setPdfFileName('')
+      setSelectedPdfFile(null)
+
       setJsonSchema(DEFAULT_JSON_SCHEMA)
       setInstruccionesIa(DEFAULT_IA_INSTRUCTIONS)
       setDetectedVariables([])
@@ -175,13 +194,36 @@ export function PlantillaFormDialog({
     await processDocxVariables(file)
   }
 
-  // Quitar el archivo seleccionado
+  // Selección local de archivo PDF Previsualizador
+  const handlePdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Por favor selecciona un archivo con extensión .pdf')
+      return
+    }
+
+    setSelectedPdfFile(file)
+    setPdfFileName(file.name)
+    toast.success('PDF de previsualización seleccionado')
+  }
+
+  // Quitar el archivo PDF seleccionado
+  const handleRemovePdfFile = () => {
+    setSelectedPdfFile(null)
+    setPdfFileName('')
+    setPdfUrl('')
+    toast.success('Archivo PDF removido')
+  }
+
+  // Quitar el archivo DOCX seleccionado
   const handleRemoveFile = () => {
     setSelectedFile(null)
     setDocxFileName('')
     setDocxUrl('')
     setDetectedVariables([])
-    toast.success('Archivo removido del modelo')
+    toast.success('Archivo Word removido del modelo')
   }
 
   // Validar JSON Schema en tiempo real
@@ -235,7 +277,7 @@ export function PlantillaFormDialog({
     }
   }
 
-  // Guardar modelo de acta (sube el archivo al servidor ÚNICAMENTE al guardar)
+  // Guardar modelo de acta (sube los archivos al servidor ÚNICAMENTE al guardar)
   const handleSubmit = async () => {
     if (!titulo.trim()) {
       toast.error('Ingresa un título para el modelo de acta')
@@ -249,17 +291,18 @@ export function PlantillaFormDialog({
       return
     }
 
-    setUploadingDocx(true)
+    setUploadingFiles(true)
     let finalDocxUrl = docxUrl
+    let finalPdfUrl = pdfUrl
 
     try {
-      // 1. Si hay un archivo local seleccionado, subirlo al servidor ahora
+      // 1. Si hay un archivo DOCX local seleccionado, subirlo al servidor ahora
       if (selectedFile) {
         toast.loading('Subiendo archivo Word al servidor...', { id: 'upload-toast' })
         const res = await uploadToPath({
           file: selectedFile,
           uploadToPathDto: {
-            ruta: 'modelo_acta/plantillas',
+            ruta: 'modelos',
             nombre_personalizado: `modelo_${Date.now()}`,
             descripcion: `Modelo DOCX para ${titulo}`,
           },
@@ -273,39 +316,73 @@ export function PlantillaFormDialog({
         toast.dismiss('upload-toast')
       }
 
-      // 2. Guardar o Actualizar el modelo en el backend
+      // 2. Si hay un archivo PDF Previsualizador local seleccionado, subirlo al servidor
+      if (selectedPdfFile) {
+        toast.loading('Subiendo PDF de previsualización...', { id: 'upload-pdf-toast' })
+        const resPdf = await uploadToPath({
+          file: selectedPdfFile,
+          uploadToPathDto: {
+            ruta: 'modelos',
+            nombre_personalizado: `preview_${Date.now()}`,
+            descripcion: `PDF Previsualizador para ${titulo}`,
+          },
+        }).unwrap()
+
+        if (resPdf.success && (resPdf.upload?.url_publica || resPdf.ruta_creada)) {
+          finalPdfUrl = resPdf.upload?.url_publica || resPdf.ruta_creada || ''
+        } else if (resPdf.upload?.url_publica) {
+          finalPdfUrl = resPdf.upload.url_publica
+        }
+        toast.dismiss('upload-pdf-toast')
+      }
+
+      // 3. Preparar payload para backend (envía únicamente campos validados por el backend)
+      const payload: Record<string, any> = {
+        titulo,
+        descripcion,
+        jsonSchema,
+        instruccionesIa,
+        variables: detectedVariables,
+      }
+      if (finalDocxUrl) payload.docxUrl = finalDocxUrl
+
+      let savedId: number | null = plantillaToEdit?.id || null
+
       if (plantillaToEdit) {
         await updateModeloActa({
           id: plantillaToEdit.id,
-          data: {
-            titulo,
-            descripcion,
-            docxUrl: finalDocxUrl,
-            jsonSchema,
-            instruccionesIa,
-            variables: detectedVariables,
-          },
+          data: payload,
         }).unwrap()
+        toast.success('Modelo de acta actualizado exitosamente')
       } else {
-        await createModeloActa({
-          titulo,
-          descripcion,
-          userId,
-          docxUrl: finalDocxUrl,
-          jsonSchema,
-          instruccionesIa,
-          variables: detectedVariables,
-        }).unwrap()
+        payload.userId = userId
+        const res = await createModeloActa(payload as any).unwrap()
+        if (res && res.data && res.data.id) {
+          savedId = res.data.id
+        }
+        toast.success('Modelo de acta creado exitosamente')
+      }
+
+      // Guardar la referencia del PDF de previsualización para el cliente
+      if (finalPdfUrl && savedId && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`iactas_pdf_modelo_${savedId}`, finalPdfUrl)
+        } catch (e) {
+          console.warn('Error al guardar referencia de PDF:', e)
+        }
       }
 
       onOpenChange(false)
       if (onSuccess) onSuccess()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al guardar el modelo de acta:', err)
-      toast.error('Error al guardar el modelo de acta')
+      const rawMessage = err?.data?.message || err?.message || err?.error
+      const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage
+      toast.error(message || 'Error al guardar el modelo de acta')
     } finally {
-      setUploadingDocx(false)
+      setUploadingFiles(false)
       toast.dismiss('upload-toast')
+      toast.dismiss('upload-pdf-toast')
     }
   }
 
@@ -413,94 +490,105 @@ export function PlantillaFormDialog({
             </div>
           )}
 
-          {/* PASO 2: PLANTILLA DOCX */}
+          {/* PASO 2: PLANTILLA DOCX Y PREVISUALIZADOR PDF */}
           {currentStep === 2 && (
             <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in-50 duration-200">
               <div className="flex items-center gap-2 pb-2 border-b">
                 <IconUpload className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-lg">Paso 2: Carga de Archivo Word (.docx)</h3>
+                <h3 className="font-semibold text-lg">Paso 2: Archivos del Modelo (Word .docx y Previsualizador PDF)</h3>
               </div>
 
-              {!docxFileName && !selectedFile ? (
-                /* Dropzone cuando NO hay archivo seleccionado */
-                <Card className="border-2 border-dashed hover:border-primary transition-all">
-                  <CardContent className="p-10 text-center relative cursor-pointer">
-                    <input
-                      type="file"
-                      accept=".docx"
-                      onChange={handleFileSelect}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="p-4 bg-primary/10 rounded-full text-primary">
-                        <IconUpload className="w-10 h-10" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-base">
-                          Haz clic o arrastra tu archivo Word (.docx) aquí
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          El archivo Word debe contener los campos a reemplazar entre corchetes dobles, ejemplo: <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-primary">{`{{imputado}}`}</code>
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                /* Tarjeta de Archivo Seleccionado con opción de Eliminar */
-                <Card className="border border-blue-200 bg-blue-50/40 dark:bg-blue-950/20 shadow-sm">
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-3.5">
-                      <div className="p-3 bg-blue-600 text-white rounded-lg">
-                        <IconFileSpreadsheet className="w-7 h-7" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          {docxFileName}
-                          {selectedFile && (
-                            <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                              Pendiente de subir al guardar
-                            </Badge>
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {selectedFile
-                            ? `${(selectedFile.size / 1024).toFixed(1)} KB • Archivo seleccionado`
-                            : 'Archivo guardado en el modelo'}
-                        </p>
-                      </div>
-                    </div>
+              {/* 1. PLANTILLA WORD (.DOCX) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-sm flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                    <IconFileSpreadsheet className="w-4 h-4 text-blue-600" />
+                    Plantilla Word (.docx) con variables
+                  </Label>
+                  <span className="text-xs text-muted-foreground">Requerido para la generación inyectada</span>
+                </div>
 
-                    <div className="flex items-center gap-2">
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept=".docx"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                        <Button type="button" variant="outline" size="sm" className="text-xs">
-                          Cambiar Archivo
+                {!docxFileName && !selectedFile ? (
+                  /* Dropzone cuando NO hay archivo seleccionado */
+                  <Card className="border-2 border-dashed hover:border-primary transition-all">
+                    <CardContent className="p-8 text-center relative cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".docx"
+                        onChange={handleFileSelect}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <div className="flex flex-col items-center gap-2.5">
+                        <div className="p-3 bg-primary/10 rounded-full text-primary">
+                          <IconUpload className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">
+                            Haz clic o arrastra tu archivo Word (.docx) aquí
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Debe contener variables entre corchetes dobles, ej: <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-primary">{`{{imputado}}`}</code>
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  /* Tarjeta de Archivo Seleccionado con opción de Eliminar */
+                  <Card className="border border-blue-200 bg-blue-50/40 dark:bg-blue-950/20 shadow-sm">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3.5">
+                        <div className="p-3 bg-blue-600 text-white rounded-lg">
+                          <IconFileSpreadsheet className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            {docxFileName}
+                            {selectedFile && (
+                              <Badge variant="secondary" className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                Pendiente de subir al guardar
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {selectedFile
+                              ? `${(selectedFile.size / 1024).toFixed(1)} KB • Archivo Word seleccionado`
+                              : 'Archivo Word guardado en el modelo'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept=".docx"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                          />
+                          <Button type="button" variant="outline" size="sm" className="text-xs">
+                            Cambiar Word
+                          </Button>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleRemoveFile}
+                          className="text-xs flex items-center gap-1"
+                          title="Eliminar archivo seleccionado"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                          Quitar Word
                         </Button>
-                      </label>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleRemoveFile}
-                        className="text-xs flex items-center gap-1"
-                        title="Eliminar archivo seleccionado"
-                      >
-                        <IconTrash className="w-4 h-4" />
-                        Quitar Archivo
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
 
               {detectedVariables.length > 0 && (
-                <div className="p-5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-3">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <IconCircleCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -528,6 +616,93 @@ export function PlantillaFormDialog({
                   </div>
                 </div>
               )}
+
+              {/* 2. PREVISUALIZADOR PDF */}
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-sm flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                    <IconFileText className="w-4 h-4 text-emerald-600" />
+                    Documento PDF de Previsualización (Opcional)
+                  </Label>
+                  <span className="text-xs text-muted-foreground">Muestra cómo lucirá la plantilla final en PDF</span>
+                </div>
+
+                {!pdfFileName && !selectedPdfFile ? (
+                  <Card className="border-2 border-dashed border-emerald-200 dark:border-emerald-900 hover:border-emerald-500 transition-all bg-emerald-50/20 dark:bg-emerald-950/10">
+                    <CardContent className="p-8 text-center relative cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handlePdfFileSelect}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <div className="flex flex-col items-center gap-2.5">
+                        <div className="p-3 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 rounded-full">
+                          <IconUpload className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">
+                            Haz clic o arrastra tu archivo PDF previsualizador aquí
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Este PDF servirá como la vista previa oficial del modelo para los usuarios.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3.5">
+                        <div className="p-3 bg-emerald-600 text-white rounded-lg">
+                          <IconFileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            {pdfFileName}
+                            {selectedPdfFile && (
+                              <Badge variant="secondary" className="text-[10px] bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
+                                Pendiente de subir al guardar
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {selectedPdfFile
+                              ? `${(selectedPdfFile.size / 1024).toFixed(1)} KB • PDF Seleccionado`
+                              : 'PDF de previsualización guardado'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handlePdfFileSelect}
+                            className="hidden"
+                          />
+                          <Button type="button" variant="outline" size="sm" className="text-xs">
+                            Cambiar PDF
+                          </Button>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleRemovePdfFile}
+                          className="text-xs flex items-center gap-1"
+                          title="Eliminar PDF de previsualización"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                          Quitar PDF
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           )}
 
@@ -620,6 +795,10 @@ export function PlantillaFormDialog({
                     <p className="font-medium text-foreground">{docxFileName || 'No seleccionado'}</p>
                   </div>
                   <div>
+                    <span className="font-semibold text-muted-foreground">PDF Previsualizador:</span>
+                    <p className="font-medium text-foreground">{pdfFileName || 'No seleccionado'}</p>
+                  </div>
+                  <div>
                     <span className="font-semibold text-muted-foreground">Variables Detectadas:</span>
                     <p className="font-medium text-foreground">{detectedVariables.length} variable(s)</p>
                   </div>
@@ -657,11 +836,11 @@ export function PlantillaFormDialog({
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isCreating || isUpdating || uploadingDocx}
+                disabled={isCreating || isUpdating || uploadingFiles}
                 className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5 px-6"
               >
                 <IconCheck className="w-4 h-4" />
-                {isCreating || isUpdating || uploadingDocx
+                {isCreating || isUpdating || uploadingFiles
                   ? 'Guardando y Subiendo...'
                   : plantillaToEdit
                     ? 'Actualizar Modelo'

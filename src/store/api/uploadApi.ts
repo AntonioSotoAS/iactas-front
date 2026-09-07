@@ -102,7 +102,7 @@ export const uploadApi = createApi({
       query: ({ file, uploadFileDto }) => {
         const formData = new FormData()
         formData.append('archivo', file)
-        
+
         if (uploadFileDto) {
           if (uploadFileDto.tipo) {
             formData.append('tipo', uploadFileDto.tipo)
@@ -139,7 +139,7 @@ export const uploadApi = createApi({
         const formData = new FormData()
         formData.append('archivo', file)
         formData.append('ruta', uploadToPathDto.ruta)
-        
+
         if (uploadToPathDto.nombre_personalizado) {
           formData.append('nombre_personalizado', uploadToPathDto.nombre_personalizado)
         }
@@ -214,7 +214,10 @@ export const uploadApi = createApi({
 // Función de descarga directa que no usa Redux para evitar problemas de serialización
 export const downloadFileDirectly = async (uri: string, filename?: string): Promise<void> => {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3009/api/v1'
+    const defaultUrl = typeof window !== 'undefined' && window.location.hostname
+      ? `http://${window.location.hostname}:3009/api/v1`
+      : 'http://172.17.78.59:3009/api/v1'
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultUrl
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     const headers: Record<string, string> = {}
@@ -222,25 +225,44 @@ export const downloadFileDirectly = async (uri: string, filename?: string): Prom
       headers['Authorization'] = `Bearer ${token}`
     }
 
-    // 1. Probar primero endpoint de descarga por URI del backend
-    let downloadUrl = `${baseUrl}/upload/download-file?uri=${encodeURIComponent(uri)}`
-    let response = await fetch(downloadUrl, { method: 'GET', headers })
+    const cleanUri = uri.replace(/^\//, '')
+    const origin = baseUrl.replace(/\/api(\/v\d+)?\/?$/, '')
 
-    // 2. Si falla, probar endpoint en plural /uploads/download-file
-    if (!response.ok) {
-      downloadUrl = `${baseUrl}/uploads/download-file?uri=${encodeURIComponent(uri)}`
-      response = await fetch(downloadUrl, { method: 'GET', headers })
+    const candidateUrls: string[] = []
+
+    if (uri.startsWith('http')) {
+      candidateUrls.push(uri)
     }
 
-    // 3. Si aún falla y es una ruta estática, intentar fetch directo al archivo backend
-    if (!response.ok && (uri.startsWith('http') || uri.includes('upload'))) {
-      const origin = baseUrl.replace(/\/api(\/v\d+)?\/?$/, '')
-      const directUrl = uri.startsWith('http') ? uri : `${origin}/${uri.replace(/^\//, '')}`
-      response = await fetch(directUrl, { method: 'GET', headers })
+    candidateUrls.push(
+      `${baseUrl}/uploads/download-file?uri=${encodeURIComponent(cleanUri)}`,
+      `${baseUrl}/upload/download-file?uri=${encodeURIComponent(cleanUri)}`
+    )
+
+    if (!cleanUri.startsWith('uploads/')) {
+      candidateUrls.push(`${origin}/uploads/${cleanUri}`)
+    }
+    if (!cleanUri.startsWith('media/')) {
+      candidateUrls.push(`${origin}/media/${cleanUri}`)
+    }
+    candidateUrls.push(`${origin}/${cleanUri}`)
+
+    let response: Response | null = null
+    for (const candidate of candidateUrls) {
+      try {
+        const res = await fetch(candidate, { method: 'GET', headers })
+        const contentType = res.headers.get('content-type') || ''
+        if (res.ok && !contentType.includes('application/json')) {
+          response = res
+          break
+        }
+      } catch (e) {
+        console.warn('Falló descarga candidato:', candidate, e)
+      }
     }
 
-    if (!response.ok) {
-      throw new Error(`Error HTTP ${response.status} al descargar el archivo`)
+    if (!response || !response.ok) {
+      throw new Error(`No se pudo descargar el archivo de ninguna de las ubicaciones del servidor`)
     }
 
     const blob = await response.blob()

@@ -59,7 +59,7 @@ const navigationItems = [
     title: "Modelos de Actas",
     url: "/dashboard/plantillas",
     icon: IconTemplate,
-    role: ["superadmin", "admin", "coordinador_especialista"]
+    role: ["superadmin", "admin", "coordinador_especialista", "especialista_audiencia"]
   },
   {
     title: "Actas Solicitadas",

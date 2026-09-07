@@ -14,6 +14,7 @@ export interface CreateModeloActaDto {
   estructura?: EstructuraSeccionDto[]
   userId: number
   docxUrl?: string
+  pdfUrl?: string
   jsonSchema?: string
   instruccionesIa?: string
   variables?: string[]
@@ -25,6 +26,7 @@ export interface UpdateModeloActaDto {
   estructura?: EstructuraSeccionDto[]
   activo?: boolean
   docxUrl?: string
+  pdfUrl?: string
   jsonSchema?: string
   instruccionesIa?: string
   variables?: string[]
@@ -40,6 +42,7 @@ export interface ModeloActaData {
   fechaActualizacion: string
   activo: boolean
   docxUrl?: string
+  pdfUrl?: string
   jsonSchema?: string
   instruccionesIa?: string
   variables?: string[]

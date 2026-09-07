@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { IconFileText } from "@tabler/icons-react"
+import { IconFileText, IconUpload, IconTemplate } from "@tabler/icons-react"
 import { formatearHora } from "@/lib/utils"
 import { Audiencia } from "@/types/audiencia"
 import { useState } from "react"
@@ -26,14 +26,13 @@ function GenerarActaModal({ audiencia }: { audiencia: Audiencia }) {
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
 
-
   const handleGenerarActa = () => {
     setShowModal(true)
   }
 
-  const handleSeleccionarTipo = () => {
+  const handleSeleccionarTipo = (ruta: string) => {
     setShowModal(false)
-    
+
     // Pasar datos como props usando los nombres exactos de la API
     const audienciaData = {
       x_nom_instancia: audiencia.x_nom_instancia,
@@ -50,11 +49,11 @@ function GenerarActaModal({ audiencia }: { audiencia: Audiencia }) {
       n_programacion: audiencia.n_programacion,
       x_desc_audiencia: audiencia.x_desc_audiencia
     }
-    
+
     // Guardar datos en sessionStorage para que estén disponibles en la página de destino
     sessionStorage.setItem('audienciaData', JSON.stringify(audienciaData))
-    
-    router.push('/dashboard/generar-acta')
+
+    router.push(ruta)
   }
 
   return (
@@ -68,39 +67,59 @@ function GenerarActaModal({ audiencia }: { audiencia: Audiencia }) {
       </Button>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[650px]">
           <DialogHeader>
             <DialogTitle>Generar Acta</DialogTitle>
             <DialogDescription>
-              Selecciona el método para generar el acta
+              Selecciona el método para generar el acta de la audiencia
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="flex justify-center mt-4">
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-primary w-full max-w-md"
-              onClick={handleSeleccionarTipo}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary flex flex-col justify-between"
+              onClick={() => handleSeleccionarTipo('/dashboard/generar-acta')}
             >
               <CardHeader className="text-center">
                 <div className="flex justify-center mb-2">
-                  <IconFileText className="h-12 w-12 text-blue-600" />
+                  <IconUpload className="h-12 w-12 text-blue-600" />
                 </div>
-                <CardTitle className="text-lg">Generación Automática</CardTitle>
+                <CardTitle className="text-lg">Subiendo tu Modelo</CardTitle>
                 <CardDescription>
-                  Genera el acta automáticamente con IA
+                  Generación automática subiendo tu propia plantilla (.docx)
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  Proceso rápido y eficiente para todas las audiencias
+                  Proceso rápido subiendo un modelo personalizado y la transcripción.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary flex flex-col justify-between"
+              onClick={() => handleSeleccionarTipo('/dashboard/generar-acta-modelo')}
+            >
+              <CardHeader className="text-center">
+                <div className="flex justify-center mb-2">
+                  <IconTemplate className="h-12 w-12 text-indigo-600" />
+                </div>
+                <CardTitle className="text-lg">Modelos Predefinidos</CardTitle>
+                <CardDescription>
+                  Generación con plantillas registradas en el sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  Selecciona uno de los modelos ya existentes y sube la transcripción.
                 </p>
               </CardContent>
             </Card>
           </div>
 
           <div className="flex justify-center mt-6">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowModal(false)}
             >
               Cancelar

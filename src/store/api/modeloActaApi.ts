@@ -1,9 +1,9 @@
 import { baseApi } from './baseApi'
-import { 
-  CreateModeloActaDto, 
-  UpdateModeloActaDto, 
-  ModeloActaResponse, 
-  ModeloActaListResponse 
+import {
+  CreateModeloActaDto,
+  UpdateModeloActaDto,
+  ModeloActaResponse,
+  ModeloActaListResponse
 } from '@/types/modeloActa'
 import { toast } from 'react-hot-toast'
 
@@ -13,53 +13,21 @@ export const modeloActaApi = baseApi.injectEndpoints({
     createModeloActa: builder.mutation<ModeloActaResponse, CreateModeloActaDto>({
       query: (body) => ({ url: '/modelo-acta', method: 'POST', body }),
       invalidatesTags: ['ModelosActa'],
-      async onQueryStarted(_, { queryFulfilled }) {
-        try {
-          await queryFulfilled
-          toast.success('Modelo de acta creado exitosamente')
-        } catch (error: unknown) {
-          const message = error && typeof error === 'object' && 'data' in error
-            ? (error.data as { message?: string })?.message
-            : 'Error al crear el modelo de acta'
-          toast.error(message || 'Error al crear el modelo de acta')
-        }
-      },
     }),
 
     // Obtener todos los modelos de acta
-    getModelosActa: builder.query<ModeloActaListResponse, { userId?: number }>({
-      query: (params) => ({ 
-        url: '/modelo-acta', 
-        method: 'GET', 
-        params: params.userId ? { userId: params.userId } : {} 
+    getModelosActa: builder.query<ModeloActaListResponse, void>({
+      query: () => ({
+        url: '/modelo-acta',
+        method: 'GET'
       }),
       providesTags: ['ModelosActa'],
-      async onQueryStarted(_, { queryFulfilled }) {
-        try {
-          await queryFulfilled
-        } catch (error: unknown) {
-          const message = error && typeof error === 'object' && 'data' in error
-            ? (error.data as { message?: string })?.message
-            : 'Error al obtener los modelos de acta'
-          toast.error(message || 'Error al obtener los modelos de acta')
-        }
-      },
     }),
 
     // Obtener un modelo de acta por ID
     getModeloActaById: builder.query<ModeloActaResponse, number>({
       query: (id) => ({ url: `/modelo-acta/${id}`, method: 'GET' }),
       providesTags: (result, error, id) => [{ type: 'ModelosActa', id }],
-      async onQueryStarted(_, { queryFulfilled }) {
-        try {
-          await queryFulfilled
-        } catch (error: unknown) {
-          const message = error && typeof error === 'object' && 'data' in error
-            ? (error.data as { message?: string })?.message
-            : 'Error al obtener el modelo de acta'
-          toast.error(message || 'Error al obtener el modelo de acta')
-        }
-      },
     }),
 
     // Actualizar modelo de acta
@@ -69,17 +37,6 @@ export const modeloActaApi = baseApi.injectEndpoints({
         'ModelosActa',
         { type: 'ModelosActa', id }
       ],
-      async onQueryStarted(_, { queryFulfilled }) {
-        try {
-          await queryFulfilled
-          toast.success('Modelo de acta actualizado exitosamente')
-        } catch (error: unknown) {
-          const message = error && typeof error === 'object' && 'data' in error
-            ? (error.data as { message?: string })?.message
-            : 'Error al actualizar el modelo de acta'
-          toast.error(message || 'Error al actualizar el modelo de acta')
-        }
-      },
     }),
 
     // Eliminar modelo de acta
@@ -98,6 +55,25 @@ export const modeloActaApi = baseApi.injectEndpoints({
         }
       },
     }),
+
+    // Obtener IDs de modelos favoritos por usuario
+    getFavoritosByUser: builder.query<{ success: boolean; data: number[] } | number[], number>({
+      query: (userId) => ({
+        url: `/modelo-acta/favoritos?userId=${userId}`,
+        method: 'GET',
+      }),
+      providesTags: ['FavoritosModelos'],
+    }),
+
+    // Alternar (toggle) favorito
+    toggleFavorito: builder.mutation<{ success?: boolean; isFavorite?: boolean; message?: string }, { userId: number; modeloActaId: number }>({
+      query: (body) => ({
+        url: '/modelo-acta/favoritos/toggle',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['FavoritosModelos'],
+    }),
   }),
 })
 
@@ -107,4 +83,6 @@ export const {
   useGetModeloActaByIdQuery,
   useUpdateModeloActaMutation,
   useDeleteModeloActaMutation,
+  useGetFavoritosByUserQuery,
+  useToggleFavoritoMutation,
 } = modeloActaApi 

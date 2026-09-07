@@ -13,6 +13,8 @@ import {
 import { IconDownload, IconRefresh, IconAlertCircle, IconSparkles, IconCopy, IconCheck } from "@tabler/icons-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { ActaGenerada, EstadoActa } from "@/types/actaGenerada"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -43,6 +45,7 @@ const ResumenModalButton = ({ acta }: { acta: ActaGenerada }) => {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  const hasResumen = !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
   const resumenText = acta.markdown_respuesta || 'No se generó un resumen ejecutivo para este registro.'
 
   const handleCopy = () => {
@@ -57,37 +60,56 @@ const ResumenModalButton = ({ acta }: { acta: ActaGenerada }) => {
       <Button
         variant="outline"
         size="sm"
+        disabled={!hasResumen}
         onClick={() => setOpen(true)}
-        className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1.5"
-        title="Ver Resumen Ejecutivo de la Audiencia"
+        className={`text-xs flex items-center gap-1.5 ${hasResumen
+          ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 cursor-pointer'
+          : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
+          }`}
+        title={hasResumen ? "Ver Resumen Ejecutivo de la Transcripción" : "Resumen no disponible"}
       >
-        <IconSparkles className="h-3.5 w-3.5 text-purple-600" />
-        Ver Resumen
+        <IconSparkles className={`h-3.5 w-3.5 ${hasResumen ? 'text-purple-600' : 'text-slate-400'}`} />
+        {hasResumen ? 'Ver Resumen' : 'Sin Resumen'}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-6xl max-h-[88vh] w-[95vw] flex flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-300">
-              <IconSparkles className="h-5 w-5 text-purple-600" />
-              Resumen Ejecutivo IA - {acta.expediente}
+            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-300 text-xl font-bold">
+              <IconSparkles className="h-6 w-6 text-purple-600" />
+              Resumen Ejecutivo IA de la Transcripción - {acta.expediente}
             </DialogTitle>
             <DialogDescription>
-              Síntesis ejecutiva de la audiencia para lectura rápida por parte del especialista legal.
+              Síntesis ejecutiva generada por IA extraída netamente del contenido de la transcripción de la audiencia para revisión rápida por el especialista legal.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border text-xs whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200 leading-relaxed">
-            {resumenText}
+          <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ node, ...props }) => <h1 className="text-xl font-bold text-purple-950 dark:text-purple-200 border-b border-purple-200 dark:border-purple-800 pb-2 mb-3 mt-4 first:mt-0" {...props} />,
+                h2: ({ node, ...props }) => <h2 className="text-lg font-semibold text-purple-900 dark:text-purple-300 mb-2 mt-4" {...props} />,
+                h3: ({ node, ...props }) => <h3 className="text-base font-semibold text-purple-900 dark:text-purple-300 mb-2 mt-3" {...props} />,
+                p: ({ node, ...props }) => <p className="mb-3 leading-relaxed text-slate-700 dark:text-slate-300" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1.5 mb-4 pl-1 text-slate-700 dark:text-slate-300" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1.5 mb-4 pl-1 text-slate-700 dark:text-slate-300" {...props} />,
+                li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-semibold text-purple-950 dark:text-purple-200" {...props} />,
+                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-purple-500 pl-4 py-1.5 italic my-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-r text-slate-700 dark:text-slate-300" {...props} />,
+              }}
+            >
+              {resumenText}
+            </ReactMarkdown>
           </div>
 
-          <DialogFooter className="flex items-center justify-between pt-4 border-t">
-            <Button variant="outline" size="sm" onClick={handleCopy} className="text-xs flex items-center gap-1">
-              {copied ? <IconCheck className="h-4 w-4 text-green-600" /> : <IconCopy className="h-4 w-4" />}
-              {copied ? 'Copiado' : 'Copiar Resumen'}
+          <DialogFooter className="flex items-center justify-between pt-4 border-t gap-2">
+            <Button variant="outline" size="sm" onClick={handleCopy} className="text-xs flex items-center gap-1.5">
+              {copied ? <IconCheck className="h-4 w-4 text-green-600" /> : <IconCopy className="h-4 w-4 text-slate-600" />}
+              {copied ? 'Copiado al portapapeles' : 'Copiar Resumen'}
             </Button>
 
-            <Button variant="default" size="sm" onClick={() => setOpen(false)}>
+            <Button variant="default" size="sm" onClick={() => setOpen(false)} className="bg-purple-700 hover:bg-purple-800 text-white">
               Cerrar
             </Button>
           </DialogFooter>
@@ -122,14 +144,14 @@ const EstadoActaCell = ({ row }: { row: { getValue: (key: string) => EstadoActa;
   const isMaxRetriesReached = acta.acta_solicitud && acta.acta_solicitud.intentos >= acta.acta_solicitud.max_intentos
 
   // Se retiró !isRetrying para que el componente no desaparezca durante la recarga y en su lugar muestre el spinner
-  const canRetry = 
-    estado === EstadoActa.ERROR && 
+  const canRetry =
+    estado === EstadoActa.ERROR &&
     acta.acta_solicitud_id &&
     !isMaxRetriesReached
 
   const handleRetry = async () => {
     if (!acta.acta_solicitud_id || isRetrying) return
-    
+
     setIsOptimisticRetrying(true)
     try {
       await retryActaSolicitud(acta.acta_solicitud_id).unwrap()
@@ -205,27 +227,27 @@ const DownloadUriButton = ({ uri, tipo, expediente }: { uri: string; tipo: 'mode
 
   const handleDownload = async () => {
     if (!uri) return
-    
+
     try {
       // Usar el hook del API para descargar el archivo
       const result = await downloadFileByUri(uri)
-      
+
       if (result.data) {
         // Crear URL temporal para el blob
         const blobUrl = window.URL.createObjectURL(result.data)
-        
+
         // Crear enlace temporal para descargar
         const link = document.createElement('a')
         link.href = blobUrl
         link.download = `${expediente}-${tipo === 'modelo' ? 'modelo' : tipo === 'transcripcion' ? 'transcripcion' : 'acta-generada'}.docx`
         document.body.appendChild(link)
         link.click()
-        
+
         // Limpiar
         document.body.removeChild(link)
         window.URL.revokeObjectURL(blobUrl)
       }
-      
+
     } catch (error) {
       console.error(`Error al descargar ${tipo}:`, error)
       // Aquí podrías agregar una notificación de error al usuario
@@ -233,7 +255,18 @@ const DownloadUriButton = ({ uri, tipo, expediente }: { uri: string; tipo: 'mode
   }
 
   if (!uri) {
-    return <span className="text-muted-foreground">No disponible</span>
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled
+        className="text-xs bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed"
+        title="Archivo no disponible"
+      >
+        <IconDownload className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
+        No disponible
+      </Button>
+    )
   }
 
   return (
@@ -343,7 +376,7 @@ export const createColumns = (): ColumnDef<ActaGenerada>[] => [
     cell: ({ row }) => {
       const fecha = row.getValue("created_at") as string
       if (!fecha) return <span className="text-muted-foreground">N/A</span>
-      
+
       try {
         const fechaObj = new Date(fecha)
         return (
@@ -376,7 +409,7 @@ export const createColumns = (): ColumnDef<ActaGenerada>[] => [
   //           <IconEye className="h-4 w-4 mr-2" />
   //           Ver Acta
   //         </Button>
-          
+
   //         <Button
   //           variant="ghost"
   //           size="sm"

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { IconSend, IconFileText, IconRobot, IconSearch, IconCheck, IconBrackets, IconSparkles, IconFileSpreadsheet } from "@tabler/icons-react"
+import { IconSend, IconFileText, IconRobot, IconSearch, IconCheck, IconBrackets, IconSparkles, IconFileSpreadsheet, IconEye } from "@tabler/icons-react"
 import { Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/file-uploader"
 import { useUploadToPathMutation, UploadFileResponse } from "@/store/api/uploadApi"
@@ -15,6 +15,7 @@ import { ModeloActaData } from "@/types/modeloActa"
 import { useUser } from "@/hooks/use-user"
 import { useRouter } from "next/navigation"
 import { AILoadingModal } from "@/components/ui/ai-loading-modal"
+import { ModeloDetailDialog } from "@/components/plantillas/modelo-detail-dialog"
 import { PrioridadSolicitud } from "@/types/actaSolicitud"
 import { AudienciaData } from "@/types/audiencia"
 import { socketService } from "@/lib/socket"
@@ -27,11 +28,12 @@ export default function GenerarActaPorModeloPage() {
     const { user } = useUser()
     const userId = user?.id || 1
 
-    const { data: modelosResponse, isLoading: loadingModelos } = useGetModelosActaQuery({ userId })
+    const { data: modelosResponse, isLoading: loadingModelos } = useGetModelosActaQuery()
     const [uploadToPath] = useUploadToPathMutation()
     const [createActaSolicitud] = useCreateActaSolicitudMutation()
 
     const [selectedModelo, setSelectedModelo] = useState<ModeloActaData | null>(null)
+    const [previewModelo, setPreviewModelo] = useState<ModeloActaData | null>(null)
     const [searchTerm, setSearchTerm] = useState("")
     const [transcripcionFile, setTranscripcionFile] = useState<File | null>(null)
     const [expediente, setExpediente] = useState<string>("")
@@ -58,11 +60,34 @@ export default function GenerarActaPorModeloPage() {
         }
     }, [])
 
-    const modelosList = modelosResponse?.data || []
-    const filteredModelos = modelosList.filter((m) =>
-        m.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (m.descripcion && m.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    const modelosList: ModeloActaData[] = Array.isArray(modelosResponse)
+        ? modelosResponse
+        : (modelosResponse?.data || [])
+
+    // Preseleccionar modelo si viene desde la sección "Modelos de Actas"
+    useEffect(() => {
+        try {
+            const selectedModeloIdFromStorage = sessionStorage.getItem('selectedModeloId')
+            if (selectedModeloIdFromStorage && modelosList.length > 0) {
+                const found = modelosList.find(m => m.id === Number(selectedModeloIdFromStorage))
+                if (found) {
+                    setSelectedModelo(found)
+                    toast.success(`Modelo "${found.titulo}" seleccionado`)
+                }
+                sessionStorage.removeItem('selectedModeloId')
+            }
+        } catch (error) {
+            console.warn('Error al leer modelo preseleccionado:', error)
+        }
+    }, [modelosList])
+
+    const filteredModelos = modelosList.filter((m) => {
+        const term = searchTerm.toLowerCase().trim()
+        if (!term) return true
+        const matchTitulo = m.titulo?.toLowerCase().includes(term)
+        const matchDesc = m.descripcion?.toLowerCase().includes(term)
+        return Boolean(matchTitulo || matchDesc)
+    })
 
     const handleTranscripcionUpload = (file: File) => {
         setTranscripcionFile(file)
@@ -242,8 +267,17 @@ export default function GenerarActaPorModeloPage() {
                     {loadingModelos ? (
                         <div className="p-8 text-center text-sm text-muted-foreground">Cargando modelos de actas...</div>
                     ) : filteredModelos.length === 0 ? (
-                        <div className="p-6 text-center text-sm text-muted-foreground border rounded-lg bg-muted/20">
-                            No se encontraron modelos. Asegúrate de crear modelos en la sección "Modelos de Actas".
+                        <div className="p-6 text-center text-sm text-muted-foreground border rounded-lg bg-muted/20 space-y-2">
+                            {searchTerm.trim() ? (
+                                <>
+                                    <p>No se encontraron modelos que coincidan con &quot;<span className="font-semibold">{searchTerm}</span>&quot;.</p>
+                                    <Button variant="outline" size="sm" onClick={() => setSearchTerm("")}>
+                                        Limpiar filtro de búsqueda
+                                    </Button>
+                                </>
+                            ) : (
+                                <p>No se encontraron modelos registrados. Asegúrate de crear modelos en la sección &quot;Modelos de Actas&quot;.</p>
+                            )}
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
@@ -265,16 +299,33 @@ export default function GenerarActaPorModeloPage() {
                                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1 min-h-[2rem]">
                                             {modelo.descripcion || 'Sin descripción'}
                                         </p>
-                                        <div className="flex items-center gap-2 mt-3 pt-2 border-t text-[11px] text-muted-foreground">
-                                            <span className="flex items-center gap-1">
-                                                <IconFileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
-                                                {modelo.docxUrl ? 'Word DOCX' : 'Standard'}
-                                            </span>
-                                            {modelo.variables && modelo.variables.length > 0 && (
-                                                <span className="ml-auto font-mono text-primary font-medium">
-                                                    {modelo.variables.length} var(s)
+                                        <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t text-[11px] text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex items-center gap-1">
+                                                    <IconFileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
+                                                    {modelo.docxUrl ? 'Word DOCX' : 'Standard'}
                                                 </span>
-                                            )}
+                                                {modelo.variables && modelo.variables.length > 0 && (
+                                                    <span className="font-mono text-primary font-medium">
+                                                        {modelo.variables.length} var(s)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setPreviewModelo(modelo)
+                                                }}
+                                                className="h-6 text-[11px] px-2 flex items-center gap-1 border-slate-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                                                title="Previsualizar PDF del modelo"
+                                            >
+                                                <IconEye className="w-3.5 h-3.5 text-emerald-600" />
+                                                <span>Previsualizar</span>
+                                            </Button>
                                         </div>
                                     </div>
                                 )
@@ -289,15 +340,27 @@ export default function GenerarActaPorModeloPage() {
                                 <span className="font-semibold text-blue-900 dark:text-blue-200 text-sm">
                                     Modelo Activo: {selectedModelo.titulo}
                                 </span>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setSelectedModelo(null)}
-                                    className="h-6 text-xs text-blue-700 hover:text-blue-900"
-                                >
-                                    Cambiar
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPreviewModelo(selectedModelo)}
+                                        className="h-6 text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-100 flex items-center gap-1"
+                                    >
+                                        <IconEye className="w-3.5 h-3.5 text-emerald-600" />
+                                        Previsualizar PDF
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedModelo(null)}
+                                        className="h-6 text-xs text-blue-700 hover:text-blue-900"
+                                    >
+                                        Cambiar
+                                    </Button>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-1 text-slate-700 dark:text-slate-300">
                                 <div>• Plantilla Word: {selectedModelo.docxUrl ? 'Cargada' : 'Predeterminada'}</div>
@@ -382,6 +445,14 @@ export default function GenerarActaPorModeloPage() {
                 isOpen={isProcessing}
                 message={processingMessage}
                 onClose={() => setIsProcessing(false)}
+            />
+
+            {/* Modal de Previsualización PDF Exclusivo */}
+            <ModeloDetailDialog
+                open={!!previewModelo}
+                onOpenChange={(open) => !open && setPreviewModelo(null)}
+                modelo={previewModelo}
+                pdfOnly={true}
             />
         </div>
     )

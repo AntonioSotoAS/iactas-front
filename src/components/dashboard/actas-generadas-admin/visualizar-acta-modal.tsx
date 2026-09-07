@@ -22,12 +22,25 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
   
   const [downloadFileByUri] = useDownloadFileByUriMutation()
 
-  // Resetear estado cuando se abre/cierra el modal
+  // Resetear estado cuando se abre/cierra el modal asignando una pestaña activa válida
   useEffect(() => {
-    if (isOpen) {
-      setActiveTab(initialTab)
+    if (isOpen && acta) {
+      const isTabAvailable = (tab: string) => {
+        if (tab === 'acta') return !!acta.acta_generada_uri
+        if (tab === 'resumen') return !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
+        if (tab === 'modelo') return !!acta.modelo_uri
+        if (tab === 'transcripcion') return !!acta.transcripcion_uri
+        return false
+      }
+
+      if (isTabAvailable(initialTab)) {
+        setActiveTab(initialTab)
+      } else {
+        const firstValid = ['acta', 'resumen', 'modelo', 'transcripcion'].find(isTabAvailable)
+        setActiveTab((firstValid as any) || 'acta')
+      }
     }
-  }, [isOpen, initialTab])
+  }, [isOpen, initialTab, acta])
 
   const handleDownload = async (uri: string, tipo: string, expediente: string) => {
     if (!uri) {
@@ -64,7 +77,7 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
   const hasActaGenerada = !!acta.acta_generada_uri
   const hasModelo = !!acta.modelo_uri
   const hasTranscripcion = !!acta.transcripcion_uri
-  const hasResumen = !!acta.markdown_respuesta
+  const hasResumen = !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -86,7 +99,7 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
                 <IconFileText className="h-4 w-4 mr-2" />
                 Acta Generada
               </TabsTrigger>
-              <TabsTrigger value="resumen">
+              <TabsTrigger value="resumen" disabled={!hasResumen}>
                 <IconSparkles className="h-4 w-4 mr-2 text-purple-600" />
                 Resumen IA
               </TabsTrigger>

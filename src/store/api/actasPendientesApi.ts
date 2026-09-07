@@ -26,7 +26,7 @@ export const actasPendientesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getActasPendientes: builder.query<ActaPendiente[], string>({
       query: (dni) => `/actas-pendientes/${dni}`,
-      providesTags: ["ActasPendientes" as never],
+      providesTags: ["ActasPendientes"],
     }),
   }),
   overrideExisting: false,
