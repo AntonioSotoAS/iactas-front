@@ -1,13 +1,87 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { ActaGenerada, EstadoActa } from "@/types/actaGenerada"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { IconFileText, IconChevronDown, IconEye, IconFile, IconFileText as IconFileTextIcon } from "@tabler/icons-react"
+import { IconFileText, IconChevronDown, IconEye, IconFile, IconFileText as IconFileTextIcon, IconSparkles, IconStar } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { CalificarActaModal, CalificacionData, CALIFICACIONES_OPTIONS } from "@/components/dashboard/calificar-acta-modal"
+
+// Componente para celda de Calificación de Acta en Admin
+const CalificarActaAdminCell = ({ acta }: { acta: ActaGenerada }) => {
+  const [openModal, setOpenModal] = useState(false)
+  const [calificacion, setCalificacion] = useState<CalificacionData | null>(null)
+
+  const loadCalificacion = () => {
+    try {
+      const stored = localStorage.getItem(`iactas_calificacion_acta_${acta.id}`)
+      if (stored) {
+        setCalificacion(JSON.parse(stored))
+      } else {
+        setCalificacion(null)
+      }
+    } catch {
+      setCalificacion(null)
+    }
+  }
+
+  useEffect(() => {
+    loadCalificacion()
+
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent<CalificacionData>
+      if (customEv.detail && customEv.detail.actaId === acta.id) {
+        setCalificacion(customEv.detail)
+      }
+    }
+
+    window.addEventListener('iactas_calificacion_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('iactas_calificacion_updated', handleUpdate)
+    }
+  }, [acta.id])
+
+  const option = calificacion
+    ? CALIFICACIONES_OPTIONS.find((opt) => opt.valor === calificacion.puntuacion)
+    : null
+
+  return (
+    <>
+      {calificacion && option ? (
+        <button
+          type="button"
+          onClick={() => setOpenModal(true)}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${option.bgColor} ${option.borderColor} ${option.color} hover:opacity-90 shadow-2xs`}
+          title={calificacion.comentario ? `Comentario: "${calificacion.comentario}"` : "Clic para ver valoración"}
+        >
+          <option.icon className="w-4 h-4" />
+          <span>{option.etiqueta}</span>
+        </button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpenModal(true)}
+          className="text-xs flex items-center gap-1.5 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 shadow-2xs font-semibold"
+        >
+          <IconStar className="h-3.5 w-3.5 text-amber-500 fill-amber-400" />
+          <span>Calificar</span>
+        </Button>
+      )}
+
+      <CalificarActaModal
+        acta={acta}
+        open={openModal}
+        onOpenChange={setOpenModal}
+        onSuccess={(nuevaCalific) => setCalificacion(nuevaCalific)}
+      />
+    </>
+  )
+}
 
 interface ViewCallbacks {
   onViewActa: (acta: ActaGenerada) => void
@@ -25,6 +99,39 @@ export const createColumns = (callbacks: ViewCallbacks): ColumnDef<ActaGenerada>
     accessorKey: "expediente",
     header: "Expediente",
     cell: ({ row }) => <div className="font-medium">{row.getValue("expediente")}</div>,
+  },
+  {
+    id: "tipo_generacion",
+    header: "Tipo",
+    cell: ({ row }) => {
+      const acta = row.original as ActaGenerada & { tipo_generacion?: string; tipo?: string }
+      const tipo = (acta.tipo_generacion || acta.tipo || "").toLowerCase()
+
+      if (tipo === 'modelo' || tipo === 'por_modelo' || tipo === 'por modelo') {
+        return (
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-xs font-semibold flex items-center gap-1 w-fit">
+            <IconFileText className="w-3.5 h-3.5 text-purple-600" />
+            <span>Por Modelo</span>
+          </Badge>
+        )
+      }
+
+      if (tipo === 'automatico' || tipo === 'automático') {
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 text-xs font-semibold flex items-center gap-1 w-fit">
+            <IconSparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Automático</span>
+          </Badge>
+        )
+      }
+
+      return <span className="text-muted-foreground text-xs font-medium px-2 py-0.5">-</span>
+    },
+  },
+  {
+    id: "calificacion",
+    header: "Calificación",
+    cell: ({ row }) => <CalificarActaAdminCell acta={row.original} />,
   },
   {
     accessorKey: "creado_por_usuario",

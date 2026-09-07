@@ -4,22 +4,24 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { IconDownload, IconFileText, IconFile, IconX, IconSparkles } from "@tabler/icons-react"
+import { IconDownload, IconFileText, IconFile, IconX, IconStar } from "@tabler/icons-react"
 import { ActaGenerada } from "@/types/actaGenerada"
 import { useDownloadFileByUriMutation } from "@/store/api/uploadApi"
+import { CalificarActaModal } from "@/components/dashboard/calificar-acta-modal"
 import { toast } from "sonner"
 
 interface VisualizarActaModalProps {
   acta: ActaGenerada | null
   isOpen: boolean
   onClose: () => void
-  initialTab?: 'acta' | 'modelo' | 'transcripcion' | 'resumen'
+  initialTab?: 'acta' | 'modelo' | 'transcripcion'
 }
 
 export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta' }: VisualizarActaModalProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [isLoading, setIsLoading] = useState(false)
-  
+  const [isCalificarOpen, setIsCalificarOpen] = useState(false)
+
   const [downloadFileByUri] = useDownloadFileByUriMutation()
 
   // Resetear estado cuando se abre/cierra el modal asignando una pestaña activa válida
@@ -27,7 +29,6 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
     if (isOpen && acta) {
       const isTabAvailable = (tab: string) => {
         if (tab === 'acta') return !!acta.acta_generada_uri
-        if (tab === 'resumen') return !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
         if (tab === 'modelo') return !!acta.modelo_uri
         if (tab === 'transcripcion') return !!acta.transcripcion_uri
         return false
@@ -36,7 +37,7 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
       if (isTabAvailable(initialTab)) {
         setActiveTab(initialTab)
       } else {
-        const firstValid = ['acta', 'resumen', 'modelo', 'transcripcion'].find(isTabAvailable)
+        const firstValid = ['acta', 'modelo', 'transcripcion'].find(isTabAvailable)
         setActiveTab((firstValid as any) || 'acta')
       }
     }
@@ -51,7 +52,7 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
     try {
       setIsLoading(true)
       const result = await downloadFileByUri(uri)
-      
+
       if (result.data) {
         const blobUrl = window.URL.createObjectURL(result.data)
         const link = document.createElement('a')
@@ -61,7 +62,7 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(blobUrl)
-        
+
         toast.success("Archivo descargado exitosamente")
       }
     } catch (error) {
@@ -77,7 +78,6 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
   const hasActaGenerada = !!acta.acta_generada_uri
   const hasModelo = !!acta.modelo_uri
   const hasTranscripcion = !!acta.transcripcion_uri
-  const hasResumen = !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -88,20 +88,16 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
             Visualizar Acta - {acta.expediente}
           </DialogTitle>
           <DialogDescription>
-            Visualiza y descarga el modelo, transcripción, acta generada y resumen de IA
+            Visualiza y descarga el modelo, transcripción y acta generada
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'acta' | 'modelo' | 'transcripcion' | 'resumen')} className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-4">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'acta' | 'modelo' | 'transcripcion')} className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="acta" disabled={!hasActaGenerada}>
                 <IconFileText className="h-4 w-4 mr-2" />
                 Acta Generada
-              </TabsTrigger>
-              <TabsTrigger value="resumen" disabled={!hasResumen}>
-                <IconSparkles className="h-4 w-4 mr-2 text-purple-600" />
-                Resumen IA
               </TabsTrigger>
               <TabsTrigger value="modelo" disabled={!hasModelo}>
                 <IconFile className="h-4 w-4 mr-2" />
@@ -114,23 +110,6 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
             </TabsList>
 
             <div className="flex-1 overflow-hidden mt-4">
-              {/* Resumen IA */}
-              <TabsContent value="resumen" className="h-full flex flex-col">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold flex items-center gap-1.5 text-purple-900 dark:text-purple-300">
-                    <IconSparkles className="h-4 w-4 text-purple-600" />
-                    Síntesis Ejecutiva de la Audiencia
-                  </h3>
-                </div>
-                
-                <div className="flex-1 border rounded-xl p-4 overflow-auto bg-slate-50 dark:bg-slate-900 text-xs leading-relaxed whitespace-pre-wrap font-sans text-slate-800 dark:text-slate-200">
-                  {hasResumen ? (
-                    acta.markdown_respuesta
-                  ) : (
-                    <span className="text-muted-foreground italic">No se ha generado un resumen para esta audiencia.</span>
-                  )}
-                </div>
-              </TabsContent>
 
               {/* Acta Generada */}
               <TabsContent value="acta" className="h-full flex flex-col">
@@ -148,10 +127,10 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 border rounded-lg p-4 overflow-auto bg-gray-50">
                   <div className="flex items-center justify-center h-full text-muted-foreground">
-                    {hasActaGenerada 
+                    {hasActaGenerada
                       ? "Haz clic en 'Descargar' para obtener el archivo"
                       : "No hay acta generada disponible"
                     }
@@ -175,10 +154,10 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 border rounded-lg p-4 overflow-auto bg-gray-50">
                   <div className="flex items-center justify-center h-full text-muted-foreground">
-                    {hasModelo 
+                    {hasModelo
                       ? "Haz clic en 'Descargar' para obtener el archivo"
                       : "No hay modelo disponible"
                     }
@@ -202,10 +181,10 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 border rounded-lg p-4 overflow-auto bg-gray-50">
                   <div className="flex items-center justify-center h-full text-muted-foreground">
-                    {hasTranscripcion 
+                    {hasTranscripcion
                       ? "Haz clic en 'Descargar' para obtener el archivo"
                       : "No hay transcripción disponible"
                     }
@@ -216,12 +195,27 @@ export function VisualizarActaModal({ acta, isOpen, onClose, initialTab = 'acta'
           </Tabs>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex items-center justify-between pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => setIsCalificarOpen(true)}
+            className="border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50/70 hover:bg-amber-100 font-semibold text-xs flex items-center gap-1.5"
+          >
+            <IconStar className="h-4 w-4 text-amber-500 fill-amber-400" />
+            Calificar Calidad del Acta
+          </Button>
+
+          <Button variant="outline" onClick={onClose} className="text-xs">
             <IconX className="h-4 w-4 mr-2" />
             Cerrar
           </Button>
         </div>
+
+        <CalificarActaModal
+          acta={acta}
+          open={isCalificarOpen}
+          onOpenChange={setIsCalificarOpen}
+        />
       </DialogContent>
     </Dialog>
   )

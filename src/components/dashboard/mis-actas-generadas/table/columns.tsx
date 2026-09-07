@@ -10,16 +10,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { IconDownload, IconRefresh, IconAlertCircle, IconSparkles, IconCopy, IconCheck } from "@tabler/icons-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { IconDownload, IconRefresh, IconAlertCircle, IconCopy, IconCheck, IconStar, IconSparkles, IconFileText } from "@tabler/icons-react"
 import { toast } from "sonner"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { ActaGenerada, EstadoActa } from "@/types/actaGenerada"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useDownloadFileByUriMutation } from "@/store/api/uploadApi"
 import { useRetryActaSolicitudMutation } from "@/store/api/actaSolicitudApi"
+import { CalificarActaModal, CalificacionData, CALIFICACIONES_OPTIONS } from "@/components/dashboard/calificar-acta-modal"
 
 const getEstadoBadge = (estado: EstadoActa) => {
   const estados: Record<EstadoActa, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
@@ -40,84 +38,79 @@ const getEstadoBadge = (estado: EstadoActa) => {
   )
 }
 
-// Componente para botón y modal de Resumen Ejecutivo IA
-const ResumenModalButton = ({ acta }: { acta: ActaGenerada }) => {
-  const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
+// Componente para celda de Calificación de Acta
+const CalificarActaCell = ({ acta }: { acta: ActaGenerada }) => {
+  const [openModal, setOpenModal] = useState(false)
+  const [calificacion, setCalificacion] = useState<CalificacionData | null>(null)
 
-  const hasResumen = !!acta.markdown_respuesta && acta.markdown_respuesta.trim() !== ''
-  const resumenText = acta.markdown_respuesta || 'No se generó un resumen ejecutivo para este registro.'
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(resumenText)
-    setCopied(true)
-    toast.success('Resumen copiado al portapapeles')
-    setTimeout(() => setCopied(false), 2000)
+  const loadCalificacion = () => {
+    try {
+      const stored = localStorage.getItem(`iactas_calificacion_acta_${acta.id}`)
+      if (stored) {
+        setCalificacion(JSON.parse(stored))
+      } else {
+        setCalificacion(null)
+      }
+    } catch {
+      setCalificacion(null)
+    }
   }
+
+  useEffect(() => {
+    loadCalificacion()
+
+    const handleUpdate = (e: Event) => {
+      const customEv = e as CustomEvent<CalificacionData>
+      if (customEv.detail && customEv.detail.actaId === acta.id) {
+        setCalificacion(customEv.detail)
+      }
+    }
+
+    window.addEventListener('iactas_calificacion_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('iactas_calificacion_updated', handleUpdate)
+    }
+  }, [acta.id])
+
+  const option = calificacion
+    ? CALIFICACIONES_OPTIONS.find((opt) => opt.valor === calificacion.puntuacion)
+    : null
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!hasResumen}
-        onClick={() => setOpen(true)}
-        className={`text-xs flex items-center gap-1.5 ${hasResumen
-          ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 cursor-pointer'
-          : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
-          }`}
-        title={hasResumen ? "Ver Resumen Ejecutivo de la Transcripción" : "Resumen no disponible"}
-      >
-        <IconSparkles className={`h-3.5 w-3.5 ${hasResumen ? 'text-purple-600' : 'text-slate-400'}`} />
-        {hasResumen ? 'Ver Resumen' : 'Sin Resumen'}
-      </Button>
+      {calificacion && option ? (
+        <button
+          type="button"
+          onClick={() => setOpenModal(true)}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${option.bgColor} ${option.borderColor} ${option.color} hover:opacity-90 shadow-2xs`}
+          title={calificacion.comentario ? `Comentario: "${calificacion.comentario}"` : "Clic para ver o cambiar calificación"}
+        >
+          <option.icon className="w-4 h-4" />
+          <span>{option.etiqueta}</span>
+        </button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpenModal(true)}
+          className="text-xs flex items-center gap-1.5 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 shadow-2xs font-semibold"
+        >
+          <IconStar className="h-3.5 w-3.5 text-amber-500 fill-amber-400" />
+          <span>Calificar</span>
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-6xl max-h-[88vh] w-[95vw] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-300 text-xl font-bold">
-              <IconSparkles className="h-6 w-6 text-purple-600" />
-              Resumen Ejecutivo IA de la Transcripción - {acta.expediente}
-            </DialogTitle>
-            <DialogDescription>
-              Síntesis ejecutiva generada por IA extraída netamente del contenido de la transcripción de la audiencia para revisión rápida por el especialista legal.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-900/50 rounded-xl border text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                h1: ({ node, ...props }) => <h1 className="text-xl font-bold text-purple-950 dark:text-purple-200 border-b border-purple-200 dark:border-purple-800 pb-2 mb-3 mt-4 first:mt-0" {...props} />,
-                h2: ({ node, ...props }) => <h2 className="text-lg font-semibold text-purple-900 dark:text-purple-300 mb-2 mt-4" {...props} />,
-                h3: ({ node, ...props }) => <h3 className="text-base font-semibold text-purple-900 dark:text-purple-300 mb-2 mt-3" {...props} />,
-                p: ({ node, ...props }) => <p className="mb-3 leading-relaxed text-slate-700 dark:text-slate-300" {...props} />,
-                ul: ({ node, ...props }) => <ul className="list-disc list-inside space-y-1.5 mb-4 pl-1 text-slate-700 dark:text-slate-300" {...props} />,
-                ol: ({ node, ...props }) => <ol className="list-decimal list-inside space-y-1.5 mb-4 pl-1 text-slate-700 dark:text-slate-300" {...props} />,
-                li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
-                strong: ({ node, ...props }) => <strong className="font-semibold text-purple-950 dark:text-purple-200" {...props} />,
-                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-purple-500 pl-4 py-1.5 italic my-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-r text-slate-700 dark:text-slate-300" {...props} />,
-              }}
-            >
-              {resumenText}
-            </ReactMarkdown>
-          </div>
-
-          <DialogFooter className="flex items-center justify-between pt-4 border-t gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopy} className="text-xs flex items-center gap-1.5">
-              {copied ? <IconCheck className="h-4 w-4 text-green-600" /> : <IconCopy className="h-4 w-4 text-slate-600" />}
-              {copied ? 'Copiado al portapapeles' : 'Copiar Resumen'}
-            </Button>
-
-            <Button variant="default" size="sm" onClick={() => setOpen(false)} className="bg-purple-700 hover:bg-purple-800 text-white">
-              Cerrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CalificarActaModal
+        acta={acta}
+        open={openModal}
+        onOpenChange={setOpenModal}
+        onSuccess={(nuevaCalific) => setCalificacion(nuevaCalific)}
+      />
     </>
   )
 }
+
+
 
 // Componente para mostrar estado con opción de reintentar
 const EstadoActaCell = ({ row }: { row: { getValue: (key: string) => EstadoActa; original: ActaGenerada } }) => {
@@ -337,13 +330,14 @@ export const createColumns = (): ColumnDef<ActaGenerada>[] => [
     },
   },
   {
-    id: "resumen",
-    header: "Resumen IA",
+    id: "calificacion",
+    header: "Calificación",
     cell: ({ row }) => {
       const acta = row.original
-      return <ResumenModalButton acta={acta} />
+      return <CalificarActaCell acta={acta} />
     },
   },
+
   {
     accessorKey: "estado",
     header: "Estado del Acta",

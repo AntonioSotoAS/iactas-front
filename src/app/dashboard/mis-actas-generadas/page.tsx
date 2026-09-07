@@ -23,12 +23,12 @@ export default function MisActasGeneradasPage() {
 
   const { user } = useUser()
 
-  const { 
-    actas, 
-    isLoading, 
-    isError, 
-    error, 
-    refetch 
+  const {
+    actas,
+    isLoading,
+    isError,
+    error,
+    refetch
   } = useActasGeneradas(filters)
 
   const { isConnected } = useSocketSolicitudes({
@@ -99,8 +99,8 @@ export default function MisActasGeneradasPage() {
             <div className="text-center">
               <p className="text-destructive mb-2">Error al cargar actas generadas</p>
               <p className="text-sm text-muted-foreground mb-4">
-                {error && typeof error === 'object' && 'data' in error 
-                  ? (error.data as { message?: string })?.message 
+                {error && typeof error === 'object' && 'data' in error
+                  ? (error.data as { message?: string })?.message
                   : "Ha ocurrido un error inesperado"}
               </p>
               <Button onClick={() => window.location.reload()}>
@@ -168,21 +168,21 @@ export default function MisActasGeneradasPage() {
                 }}
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Estado</label>
               <Select value={filters.estado} onValueChange={(value) => handleFilterChange("estado", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos los estados" />
                 </SelectTrigger>
-                                 <SelectContent>
-                   <SelectItem value="todos">Todos los estados</SelectItem>
-                   <SelectItem value={EstadoActa.PENDIENTE}>Pendiente</SelectItem>
-                   <SelectItem value={EstadoActa.GENERADA}>Generada</SelectItem>
-                   <SelectItem value={EstadoActa.SUBIDA_SIJ}>Subida al SIJ</SelectItem>
-                   <SelectItem value={EstadoActa.ERROR}>Error</SelectItem>
-                   <SelectItem value={EstadoActa.AGREGAR}>Agregar</SelectItem>
-                 </SelectContent>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los estados</SelectItem>
+                  <SelectItem value={EstadoActa.PENDIENTE}>Pendiente</SelectItem>
+                  <SelectItem value={EstadoActa.GENERADA}>Generada</SelectItem>
+                  <SelectItem value={EstadoActa.SUBIDA_SIJ}>Subida al SIJ</SelectItem>
+                  <SelectItem value={EstadoActa.ERROR}>Error</SelectItem>
+                  <SelectItem value={EstadoActa.AGREGAR}>Agregar</SelectItem>
+                </SelectContent>
               </Select>
             </div>
 
