@@ -49,6 +49,8 @@ export interface UsuariosResponse {
   total: number
   limit: number
   offset: number
+  page?: number
+  totalPages?: number
 }
 
 // Tipos para filtros y paginación

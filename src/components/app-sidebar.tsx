@@ -44,7 +44,7 @@ const navigationItems = [
     role: ["superadmin", "admin", "especialista_audiencia"]
   },
   {
-    title: "Generar Acta",
+    title: "Generar Acta Automático",
     url: "/dashboard/generar-acta",
     icon: IconRobot,
     role: ["superadmin", "admin", "coordinador_especialista"]

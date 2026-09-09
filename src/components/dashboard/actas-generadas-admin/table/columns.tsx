@@ -104,14 +104,21 @@ export const createColumns = (callbacks: ViewCallbacks): ColumnDef<ActaGenerada>
     id: "tipo_generacion",
     header: "Tipo",
     cell: ({ row }) => {
-      const acta = row.original as ActaGenerada & { tipo_generacion?: string; tipo?: string }
+      const acta = row.original as ActaGenerada & { tipo_generacion?: string; tipo?: string; nombre_modelo?: string }
       const tipo = (acta.tipo_generacion || acta.tipo || "").toLowerCase()
 
       if (tipo === 'modelo' || tipo === 'por_modelo' || tipo === 'por modelo') {
+        const nombreModelo = acta.nombre_modelo || ''
+        const etiqueta = nombreModelo ? `Por Modelo: ${nombreModelo}` : 'Por Modelo'
+
         return (
-          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-xs font-semibold flex items-center gap-1 w-fit">
-            <IconFileText className="w-3.5 h-3.5 text-purple-600" />
-            <span>Por Modelo</span>
+          <Badge
+            variant="outline"
+            className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-xs font-semibold flex items-center gap-1 w-fit max-w-[220px]"
+            title={nombreModelo ? `Modelo de acta: ${nombreModelo}` : 'Generado por Modelo'}
+          >
+            <IconFileText className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+            <span className="truncate">{etiqueta}</span>
           </Badge>
         )
       }

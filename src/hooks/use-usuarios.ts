@@ -41,14 +41,12 @@ export function useUsuarios() {
     // Log de cambios en filtros para debugging
   }, [filters, debouncedSearch])
 
-  // Calcular offset basado en la página - SIN usar search del backend
+  // Prepara los filtros enviando búsqueda y paginación al backend
   const queryFilters = {
     ...filters,
-    search: undefined, // No enviar search al backend
+    search: debouncedSearch && debouncedSearch.trim() ? debouncedSearch.trim() : undefined,
     offset: ((filters.page || 1) - 1) * (filters.limit || 10),
   }
-
-
 
   const {
     data: usuariosData,
@@ -57,7 +55,6 @@ export function useUsuarios() {
     error: errorUsuarios,
     refetch: refetchUsuarios,
   } = useGetUsuariosQuery(queryFilters, {
-    // Solo hacer la petición si hay al menos un filtro válido o es la primera carga
     skip: false,
   })
 
@@ -125,13 +122,13 @@ export function useUsuarios() {
     }))
   }
 
+  const total = usuariosData?.total || 0
+  const limit = filters.limit || 10
+  const currentPage = filters.page || 1
+  const totalPages = usuariosData?.totalPages || (total > 0 ? Math.ceil(total / limit) : 0)
+
   const nextPage = () => {
-    const currentPage = filters.page || 1
-    const limit = filters.limit || 10
-    const startIndex = (currentPage - 1) * limit
-    const endIndex = startIndex + limit
-    
-    if (endIndex < totalFiltrado) {
+    if (currentPage < totalPages) {
       setFilters(prev => ({ 
         ...prev, 
         page: currentPage + 1,
@@ -141,37 +138,16 @@ export function useUsuarios() {
   }
 
   const prevPage = () => {
-    const currentPage = filters.page || 1
     if (currentPage > 1) {
       setFilters(prev => ({ 
         ...prev, 
         page: currentPage - 1,
-        offset: (currentPage - 2) * (prev.limit || 10)
+        offset: (currentPage - 2) * limit
       }))
     }
   }
 
-  // Función para filtrar usuarios en el frontend
-  const filtrarUsuarios = useCallback((usuarios: Usuario[], searchTerm: string) => {
-    if (!searchTerm || !searchTerm.trim()) {
-      return usuarios
-    }
-
-    const termino = searchTerm.toLowerCase().trim()
-    return usuarios.filter(usuario => {
-      const nombreCompleto = `${usuario.nombres || ''} ${usuario.apellidos_paterno || ''} ${usuario.apellidos_materno || ''}`.toLowerCase()
-      const correo = (usuario.correo || '').toLowerCase()
-      const dni = (usuario.dni || '').toLowerCase()
-      
-      return nombreCompleto.includes(termino) || 
-             correo.includes(termino) || 
-             dni.includes(termino)
-    })
-  }, [])
-
-  // Aplicar filtros del frontend
-  const usuariosFiltrados = filtrarUsuarios(usuariosData?.data || [], debouncedSearch)
-  const totalFiltrado = usuariosFiltrados.length
+  const usuarios = usuariosData?.data || []
 
   // Función para reintentar la petición
   const retry = useCallback(() => {
@@ -180,11 +156,11 @@ export function useUsuarios() {
 
   return {
     // Datos
-    usuarios: usuariosFiltrados,
-    total: totalFiltrado,
-    page: filters.page || 1,
-    limit: filters.limit || 10,
-    totalPages: Math.ceil(totalFiltrado / (filters.limit || 10)),
+    usuarios,
+    total,
+    page: currentPage,
+    limit,
+    totalPages,
     
     // Estados
     isLoading: isLoadingUsuarios,
@@ -208,8 +184,8 @@ export function useUsuarios() {
     // Paginación
     nextPage,
     prevPage,
-    hasNextPage: usuariosData ? usuariosData.data.length === filters.limit : false,
-    hasPrevPage: filters.page && filters.page > 1,
+    hasNextPage: currentPage < totalPages,
+    hasPrevPage: currentPage > 1,
     
     // Acciones
     createUsuario: handleCreateUsuario,

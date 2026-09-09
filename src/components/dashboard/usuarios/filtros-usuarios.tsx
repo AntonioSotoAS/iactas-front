@@ -30,7 +30,7 @@ export function FiltrosUsuarios({
   currentRol,
   currentSedeId,
 }: FiltrosUsuariosProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   const { data: sedesResponse } = useGetSedesQuery({ limit: 100 })
 
   const hasActiveFilters = currentSearch || currentRol || currentSedeId
@@ -63,7 +63,7 @@ export function FiltrosUsuarios({
           </div>
         </div>
       </CardHeader>
-      
+
       {isExpanded && (
         <CardContent className="space-y-4">
           {/* Búsqueda */}

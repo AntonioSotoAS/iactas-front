@@ -14,6 +14,8 @@ export interface ActaGenerada {
   markdown_respuesta?: string
   estado: EstadoActa
   modelo_uri?: string
+  tipo_generacion?: string
+  nombre_modelo?: string
   transcripcion_uri?: string
   acta_generada_uri?: string
   acta_subida_al_sij: boolean
