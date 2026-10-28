@@ -14,8 +14,6 @@ import { useRouter } from "next/navigation"
 import { AILoadingModal } from "@/components/ui/ai-loading-modal"
 import { PrioridadSolicitud } from "@/types/actaSolicitud"
 import { AudienciaData } from "@/types/audiencia"
-import { socketService } from "@/lib/socket"
-import { SOLICITUD_WS_EVENTS, WsCambioEstadoPayload } from "@/types/ws-events"
 
 import { toast } from "react-hot-toast"
 import packageJson from "../../../../package.json"
@@ -105,6 +103,8 @@ export default function GenerarActaAutomaticoV2Page() {
         isProcessingRef.current = true
         setIsProcessing(true)
         setProcessingMessage("")
+
+        let isSuccess = false
 
         try {
 
@@ -231,30 +231,11 @@ export default function GenerarActaAutomaticoV2Page() {
                 const actaSolicitudResult = await createActaSolicitud(actaSolicitudData).unwrap()
 
                 if (actaSolicitudResult.success) {
-                    toast.success("🎉 ¡Solicitud de acta creada exitosamente! Los archivos se procesarán automáticamente.")
-                    setProcessingMessage("Esperando procesamiento en tiempo real (Socket conectado)...")
-
-                    const socket = socketService.getSocket()
-                    const solicitudId = actaSolicitudResult.data.id
-
-                    const handleCambioEstado = (payload: WsCambioEstadoPayload) => {
-                        if (payload.data.solicitudId === solicitudId) {
-                            if (payload.data.nuevoEstado === 'completada' || payload.data.nuevoEstado === 'error') {
-                                socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                                router.push("/dashboard/mis-actas-generadas")
-                            } else if (payload.data.nuevoEstado === 'procesando') {
-                                setProcessingMessage("Tu solicitud está siendo procesada ahora mismo...")
-                            }
-                        }
-                    }
-
-                    socket.on(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-
-                    // Fallback genérico por si se pierde la conexión
-                    setTimeout(() => {
-                        socket.off(SOLICITUD_WS_EVENTS.SOLICITUD_ESTADO, handleCambioEstado)
-                        router.push("/dashboard/mis-actas-generadas")
-                    }, 45000)
+                    isSuccess = true
+                    toast.success("🎉 ¡Solicitud de acta creada exitosamente! Redirigiendo a tus actas...")
+                    setProcessingMessage("¡Solicitud creada! Redirigiendo a mis actas generadas...")
+                    router.push("/dashboard/mis-actas-generadas")
+                    return
                 } else {
                     throw new Error("Error al crear la solicitud de acta")
                 }
@@ -313,9 +294,11 @@ export default function GenerarActaAutomaticoV2Page() {
                 toast.error("❌ Error desconocido. Inténtalo de nuevo o contacta con soporte técnico.")
             }
         } finally {
-            isProcessingRef.current = false
-            setIsProcessing(false)
-            setProcessingMessage("")
+            if (!isSuccess) {
+                isProcessingRef.current = false
+                setIsProcessing(false)
+                setProcessingMessage("")
+            }
         }
     }
 
@@ -415,7 +398,7 @@ export default function GenerarActaAutomaticoV2Page() {
                             {isProcessing ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Procesando solicitud...</span>
+                                    <span>{processingMessage || "Procesando solicitud..."}</span>
                                 </>
                             ) : (
                                 <>
@@ -431,93 +414,13 @@ export default function GenerarActaAutomaticoV2Page() {
                 <AILoadingModal
                     isOpen={isProcessing}
                     message={processingMessage}
-                    onClose={() => setIsProcessing(false)}
+                    onClose={() => {
+                        if (!isProcessingRef.current) {
+                            setIsProcessing(false)
+                        }
+                    }}
                 />
             </div>
         </div>
     )
 }
-{/* Modal de Procesamiento 
-"use client"
-
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { IconAlertTriangle, IconRefresh, IconArrowLeft, IconRobotOff } from "@tabler/icons-react"
-
-export default function GenerarActaAutomaticoV2Page() {
-    const router = useRouter()
-
-    const handleRetry = () => {
-        window.location.reload()
-    }
-
-    const handleGoBack = () => {
-        router.back()
-    }
-
-    return (
-        <div className="container mx-auto p-6 min-h-[80vh] flex items-center justify-center">
-            <div className="max-w-2xl mx-auto w-full">
-                <Card className="border-orange-200 shadow-lg">
-                    <CardHeader className="text-center pb-2">
-                        <div className="flex justify-center mb-4">
-                            <div className="p-4 bg-orange-50 rounded-full">
-                                <IconRobotOff className="w-12 h-12 text-orange-600" />
-                            </div>
-                        </div>
-                        <CardTitle className="text-2xl font-bold text-slate-900">
-                            Servicio Temporalmente No Disponible
-                        </CardTitle>
-                        <CardDescription className="text-lg mt-2">
-                            ❌ Error en la respuesta de Gemini: 503
-                        </CardDescription>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-6 text-center">
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-left font-mono text-sm inline-block mx-auto">
-                            <p className="text-red-600 font-bold mb-1">Error: 503</p>
-                            <p className="text-slate-700">
-                                "Este modelo está experimentando una alta demanda. Los picos de demanda suelen ser temporales. Inténtelo de nuevo más tarde."
-                            </p>
-                            <p className="text-slate-500 mt-1">Estado: NO DISPONIBLE</p>
-                        </div>
-
-                        <div className="space-y-4">
-                            <p className="text-muted-foreground">
-                                Lo sentimos, los servidores de Inteligencia Artificial están recibiendo más solicitudes de las que pueden procesar en este momento. 
-                                <strong> Tus archivos no han sido procesados.</strong>
-                            </p>
-                            
-                            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                                <Button 
-                                    onClick={handleRetry}
-                                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                                >
-                                    <IconRefresh className="w-4 h-4" />
-                                    Reintentar ahora
-                                </Button>
-                                <Button 
-                                    variant="outline" 
-                                    onClick={handleGoBack}
-                                    className="flex items-center gap-2"
-                                >
-                                    <IconArrowLeft className="w-4 h-4" />
-                                    Regresar al Dashboard
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-slate-100">
-                            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                                <IconAlertTriangle className="w-4 h-4" />
-                                <span>Si el problema persiste por más de 10 minutos, contacte a soporte técnico.</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    )
-}
-*/}

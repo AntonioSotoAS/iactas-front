@@ -25,7 +25,7 @@ export const actaSolicitudApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['ActaSolicitud'],
+      invalidatesTags: ['ActaSolicitud', 'ActasGeneradas'],
     }),
 
     // Obtener todas las solicitudes con filtros y paginación
